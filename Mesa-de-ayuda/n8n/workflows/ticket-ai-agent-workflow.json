@@ -1,0 +1,48 @@
+{
+  "name": "Mesa de Ayuda - Ticket AI Agent (DeepSeek)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ticket-ai-suggestions",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Actúa como un asistente técnico de mesa de ayuda. Analiza el siguiente ticket y determina:\n1. Área adecuada (ej. Soporte Técnico, Facturación, Infraestructura)\n2. Prioridad recomendada (baja, media, alta)\n3. Borrador de primera respuesta cordial para el cliente.\n\nTítulo: {{ $json.body.titulo }}\nDescripción: {{ $json.body.descripcion }}\n\nResponde estrictamente en formato JSON con la siguiente estructura:\n{\n  \"area_sugerida\": \"string\",\n  \"prioridad_sugerida\": \"baja\" | \"media\" | \"alta\",\n  \"justificacion\": \"string\",\n  \"borrador_respuesta\": \"string\"\n}",
+        "options": {
+          "systemMessage": "Eres un clasificador experto de tickets de soporte técnico. Responde únicamente en JSON válido."
+        }
+      },
+      "id": "ai-agent-node",
+      "name": "AI Agent (DeepSeek)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Inbound": {
+      "main": [
+        [
+          {
+            "node": "AI Agent (DeepSeek)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

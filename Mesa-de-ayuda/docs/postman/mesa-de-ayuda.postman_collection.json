@@ -1,0 +1,342 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "name": "[PLANTILLA] Mesa de Ayuda con SLA e Historial API",
+    "description": "[PLANTILLA / ESPECIFICACIÓN TÉCNICA] Esta colección define el contrato de endpoints, payloads y casos de prueba (200, 201, 400, 404, 409) para el backend. Actualmente funciona como plantilla de referencia ya que los endpoints de negocio están pendientes de implementación en la siguiente fase.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Métricas y Resumen",
+      "item": [
+        {
+          "name": "GET /api/resumen (200 OK - Métricas calculadas en SQL)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/resumen",
+              "host": ["{{baseUrl}}"],
+              "path": ["resumen"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Agentes",
+      "item": [
+        {
+          "name": "Listar Agentes (200 OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agentes",
+              "host": ["{{baseUrl}}"],
+              "path": ["agentes"]
+            }
+          }
+        },
+        {
+          "name": "Crear Agente (201 Created)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Mariana López\",\n  \"email\": \"mariana.lopez@mesadeayuda.com\",\n  \"area\": \"Soporte Técnico\",\n  \"activo\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agentes",
+              "host": ["{{baseUrl}}"],
+              "path": ["agentes"]
+            }
+          }
+        },
+        {
+          "name": "Crear Agente - Error Validación (400 Bad Request)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agentes",
+              "host": ["{{baseUrl}}"],
+              "path": ["agentes"]
+            }
+          }
+        },
+        {
+          "name": "Crear Agente - Conflicto Email Duplicado (409 Conflict)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Carlos Duplicado\",\n  \"email\": \"carlos.mendoza@mesadeayuda.com\",\n  \"area\": \"Soporte Técnico\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agentes",
+              "host": ["{{baseUrl}}"],
+              "path": ["agentes"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Agente Inexistente (404 Not Found)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agentes/9999",
+              "host": ["{{baseUrl}}"],
+              "path": ["agentes", "9999"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clientes",
+      "item": [
+        {
+          "name": "Listar Clientes (200 OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": ["{{baseUrl}}"],
+              "path": ["clientes"]
+            }
+          }
+        },
+        {
+          "name": "Crear Cliente (201 Created)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Corporación Beta\",\n  \"email\": \"contacto@beta.com\",\n  \"telefono\": \"+506 2525-0000\",\n  \"empresa\": \"Beta Corp\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": ["{{baseUrl}}"],
+              "path": ["clientes"]
+            }
+          }
+        },
+        {
+          "name": "Crear Cliente - Error Validación (400 Bad Request)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"invalido_sin_nombre\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": ["{{baseUrl}}"],
+              "path": ["clientes"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Cliente Inexistente (404 Not Found)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/9999",
+              "host": ["{{baseUrl}}"],
+              "path": ["clientes", "9999"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tickets",
+      "item": [
+        {
+          "name": "Listar Tickets con Filtros (200 OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tickets?estado=abierto&prioridad=alta",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets"],
+              "query": [
+                { "key": "estado", "value": "abierto" },
+                { "key": "prioridad", "value": "alta" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear Ticket con Asignación Automática y SLA (201 Created)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Falla en enlace de fibra óptica\",\n  \"descripcion\": \"Pérdida de conectividad en sede principal.\",\n  \"cliente_id\": 1,\n  \"area\": \"Infraestructura\",\n  \"prioridad\": \"alta\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tickets",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets"]
+            }
+          }
+        },
+        {
+          "name": "Crear Ticket - Error Validación Faltan Campos (400 Bad Request)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Sin descripcion ni cliente\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tickets",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Ticket con Detalle e Historial (200 OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "1"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Ticket Inexistente (404 Not Found)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/9999",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "9999"]
+            }
+          }
+        },
+        {
+          "name": "Transición de Estado Inválida (409 Conflict)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"cerrado\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tickets/1/estado",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "1", "estado"]
+            }
+          }
+        },
+        {
+          "name": "Resolver Ticket sin Comentario Obligatorio (409 Conflict)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"resuelto\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tickets/2/estado",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "2", "estado"]
+            }
+          }
+        },
+        {
+          "name": "Resolver Ticket con Comentario Explicativo (200 OK - Transaccional)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"resuelto\",\n  \"comentario\": \"Se regeneró la factura electrónica en el portal y se confirmó con el cliente.\",\n  \"agente_id\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tickets/2/estado",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "2", "estado"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comentarios",
+      "item": [
+        {
+          "name": "Listar Comentarios de un Ticket (200 OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/1/comentarios",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "1", "comentarios"]
+            }
+          }
+        },
+        {
+          "name": "Agregar Comentario a Ticket (201 Created)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"autor_tipo\": \"agente\",\n  \"autor_id\": 1,\n  \"contenido\": \"Se envió técnico a revisar el enlace físico.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tickets/1/comentarios",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "1", "comentarios"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
