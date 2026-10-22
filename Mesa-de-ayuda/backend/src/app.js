@@ -3,6 +3,11 @@ import cors from 'cors';
 import { config } from './config/environment.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 
+import agentRoutes from './routes/agentRoutes.js';
+import clientRoutes from './routes/clientRoutes.js';
+import ticketRoutes from './routes/ticketRoutes.js';
+import summaryRoutes from './routes/summaryRoutes.js';
+
 const app = express();
 
 // Middlewares base
@@ -17,8 +22,11 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'mesa-de-ayuda-backend' });
 });
 
-// Los enrutadores de agentes, clientes, tickets, comentarios y resumen
-// se conectarán en la siguiente etapa de implementación.
+// Enrutadores principales de la API REST
+app.use('/api/agentes', agentRoutes);
+app.use('/api/clientes', clientRoutes);
+app.use('/api/tickets', ticketRoutes);
+app.use('/api', summaryRoutes);
 
 // Manejador de rutas no encontradas (404)
 app.use((req, res) => {

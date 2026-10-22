@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
-    "name": "[PLANTILLA] Mesa de Ayuda con SLA e Historial API",
-    "description": "[PLANTILLA / ESPECIFICACIÓN TÉCNICA] Esta colección define el contrato de endpoints, payloads y casos de prueba (200, 201, 400, 404, 409) para el backend. Actualmente funciona como plantilla de referencia ya que los endpoints de negocio están pendientes de implementación en la siguiente fase.",
+    "name": "Mesa de Ayuda con SLA e Historial API (Backend Real)",
+    "description": "Colección completa y verificada para la API REST de Mesa de Ayuda con SLA e Historial. Cubre CRUD de Agentes y Clientes, ciclo de vida de Tickets, comentarios, historial de auditoría y métricas SQL. Cumple con los códigos HTTP 200, 201, 400, 404 y 409 bajo el formato { error: mensaje }.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -14,83 +14,92 @@
   ],
   "item": [
     {
-      "name": "Health Check",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/health",
-          "host": ["{{baseUrl}}"],
-          "path": ["health"]
-        }
-      }
-    },
-    {
-      "name": "Métricas y Resumen",
+      "name": "0. Health & Rutas",
       "item": [
         {
-          "name": "GET /api/resumen (200 OK - Métricas calculadas en SQL)",
+          "name": "GET /api/health (200 OK)",
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/resumen",
-              "host": ["{{baseUrl}}"],
-              "path": ["resumen"]
-            }
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "GET Ruta Inexistente (404 Not Found)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/no-existe", "host": ["{{baseUrl}}"], "path": ["no-existe"] }
           }
         }
       ]
     },
     {
-      "name": "Agentes",
+      "name": "1. Agentes (CRUD)",
       "item": [
         {
-          "name": "Listar Agentes (200 OK)",
+          "name": "GET /api/agentes - Listar todos (200 OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/agentes", "host": ["{{baseUrl}}"], "path": ["agentes"] }
+          }
+        },
+        {
+          "name": "GET /api/agentes?area=Soporte Técnico - Filtrar por Área (200 OK)",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/agentes",
+              "raw": "{{baseUrl}}/agentes?area=Soporte Técnico",
               "host": ["{{baseUrl}}"],
-              "path": ["agentes"]
+              "path": ["agentes"],
+              "query": [{ "key": "area", "value": "Soporte Técnico" }]
             }
           }
         },
         {
-          "name": "Crear Agente (201 Created)",
+          "name": "GET /api/agentes/:id - Obtener por ID (200 OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/agentes/1", "host": ["{{baseUrl}}"], "path": ["agentes", "1"] }
+          }
+        },
+        {
+          "name": "GET /api/agentes/:id - No Encontrado (404 Not Found)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/agentes/9999", "host": ["{{baseUrl}}"], "path": ["agentes", "9999"] }
+          }
+        },
+        {
+          "name": "POST /api/agentes - Crear Agente Exitoso (201 Created)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Mariana López\",\n  \"email\": \"mariana.lopez@mesadeayuda.com\",\n  \"area\": \"Soporte Técnico\",\n  \"activo\": 1\n}"
+              "raw": "{\n  \"nombre\": \"Gabriel Soto\",\n  \"email\": \"gabriel.soto@mesadeayuda.com\",\n  \"area\": \"Soporte Técnico\",\n  \"activo\": 1\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/agentes",
-              "host": ["{{baseUrl}}"],
-              "path": ["agentes"]
-            }
+            "url": { "raw": "{{baseUrl}}/agentes", "host": ["{{baseUrl}}"], "path": ["agentes"] }
           }
         },
         {
-          "name": "Crear Agente - Error Validación (400 Bad Request)",
+          "name": "POST /api/agentes - Error de Validación Sintáctica (400 Bad Request)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"\"\n}"
+              "raw": "{\n  \"nombre\": \"\",\n  \"email\": \"email-invalido\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/agentes",
-              "host": ["{{baseUrl}}"],
-              "path": ["agentes"]
-            }
+            "url": { "raw": "{{baseUrl}}/agentes", "host": ["{{baseUrl}}"], "path": ["agentes"] }
           }
         },
         {
-          "name": "Crear Agente - Conflicto Email Duplicado (409 Conflict)",
+          "name": "POST /api/agentes - Email Duplicado (409 Conflict)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -98,60 +107,72 @@
               "mode": "raw",
               "raw": "{\n  \"nombre\": \"Carlos Duplicado\",\n  \"email\": \"carlos.mendoza@mesadeayuda.com\",\n  \"area\": \"Soporte Técnico\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/agentes",
-              "host": ["{{baseUrl}}"],
-              "path": ["agentes"]
-            }
+            "url": { "raw": "{{baseUrl}}/agentes", "host": ["{{baseUrl}}"], "path": ["agentes"] }
           }
         },
         {
-          "name": "Obtener Agente Inexistente (404 Not Found)",
+          "name": "PATCH /api/agentes/:id - Actualizar Agente (200 OK)",
           "request": {
-            "method": "GET",
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Gabriel Soto Actualizado\",\n  \"area\": \"Infraestructura\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/agentes/1", "host": ["{{baseUrl}}"], "path": ["agentes", "1"] }
+          }
+        },
+        {
+          "name": "DELETE /api/agentes/:id - Con Tickets Asociados (409 Conflict - ON DELETE RESTRICT)",
+          "request": {
+            "method": "DELETE",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/agentes/9999",
-              "host": ["{{baseUrl}}"],
-              "path": ["agentes", "9999"]
-            }
+            "url": { "raw": "{{baseUrl}}/agentes/1", "host": ["{{baseUrl}}"], "path": ["agentes", "1"] }
           }
         }
       ]
     },
     {
-      "name": "Clientes",
+      "name": "2. Clientes (CRUD)",
       "item": [
         {
-          "name": "Listar Clientes (200 OK)",
+          "name": "GET /api/clientes - Listar todos (200 OK)",
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/clientes",
-              "host": ["{{baseUrl}}"],
-              "path": ["clientes"]
-            }
+            "url": { "raw": "{{baseUrl}}/clientes", "host": ["{{baseUrl}}"], "path": ["clientes"] }
           }
         },
         {
-          "name": "Crear Cliente (201 Created)",
+          "name": "GET /api/clientes/:id - Obtener por ID (200 OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/clientes/1", "host": ["{{baseUrl}}"], "path": ["clientes", "1"] }
+          }
+        },
+        {
+          "name": "GET /api/clientes/:id - No Encontrado (404 Not Found)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/clientes/9999", "host": ["{{baseUrl}}"], "path": ["clientes", "9999"] }
+          }
+        },
+        {
+          "name": "POST /api/clientes - Crear Cliente Exitoso (201 Created)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Corporación Beta\",\n  \"email\": \"contacto@beta.com\",\n  \"telefono\": \"+506 2525-0000\",\n  \"empresa\": \"Beta Corp\"\n}"
+              "raw": "{\n  \"nombre\": \"Finanzas del Valle S.A.\",\n  \"email\": \"contacto@finanzasvalle.cr\",\n  \"telefono\": \"+506 2233-4455\",\n  \"empresa\": \"Finanzas del Valle\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/clientes",
-              "host": ["{{baseUrl}}"],
-              "path": ["clientes"]
-            }
+            "url": { "raw": "{{baseUrl}}/clientes", "host": ["{{baseUrl}}"], "path": ["clientes"] }
           }
         },
         {
-          "name": "Crear Cliente - Error Validación (400 Bad Request)",
+          "name": "POST /api/clientes - Validación Error (400 Bad Request)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -159,104 +180,143 @@
               "mode": "raw",
               "raw": "{\n  \"email\": \"invalido_sin_nombre\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/clientes",
-              "host": ["{{baseUrl}}"],
-              "path": ["clientes"]
-            }
+            "url": { "raw": "{{baseUrl}}/clientes", "host": ["{{baseUrl}}"], "path": ["clientes"] }
           }
         },
         {
-          "name": "Obtener Cliente Inexistente (404 Not Found)",
+          "name": "POST /api/clientes - Email Duplicado (409 Conflict)",
           "request": {
-            "method": "GET",
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cliente Duplicado\",\n  \"email\": \"soporte@acme.com\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/clientes", "host": ["{{baseUrl}}"], "path": ["clientes"] }
+          }
+        },
+        {
+          "name": "PATCH /api/clientes/:id - Actualizar Cliente (200 OK)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telefono\": \"+506 8877-6655\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/clientes/1", "host": ["{{baseUrl}}"], "path": ["clientes", "1"] }
+          }
+        },
+        {
+          "name": "DELETE /api/clientes/:id - Con Tickets Asociados (409 Conflict - ON DELETE RESTRICT)",
+          "request": {
+            "method": "DELETE",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/clientes/9999",
-              "host": ["{{baseUrl}}"],
-              "path": ["clientes", "9999"]
-            }
+            "url": { "raw": "{{baseUrl}}/clientes/1", "host": ["{{baseUrl}}"], "path": ["clientes", "1"] }
           }
         }
       ]
     },
     {
-      "name": "Tickets",
+      "name": "3. Tickets (SLA, Asignación, Filtros y Transiciones)",
       "item": [
         {
-          "name": "Listar Tickets con Filtros (200 OK)",
+          "name": "GET /api/tickets - Listado con Filtros y Búsqueda (200 OK)",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/tickets?estado=abierto&prioridad=alta",
+              "raw": "{{baseUrl}}/tickets?estado=en progreso&prioridad=alta&q=servidor&sortBy=fecha_limite&order=asc",
               "host": ["{{baseUrl}}"],
               "path": ["tickets"],
               "query": [
-                { "key": "estado", "value": "abierto" },
-                { "key": "prioridad", "value": "alta" }
+                { "key": "estado", "value": "en progreso" },
+                { "key": "prioridad", "value": "alta" },
+                { "key": "q", "value": "servidor" },
+                { "key": "sortBy", "value": "fecha_limite" },
+                { "key": "order", "value": "asc" }
               ]
             }
           }
         },
         {
-          "name": "Crear Ticket con Asignación Automática y SLA (201 Created)",
+          "name": "POST /api/tickets - Crear Ticket con SLA 4h y Auto-Asignación (201 Created)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"titulo\": \"Falla en enlace de fibra óptica\",\n  \"descripcion\": \"Pérdida de conectividad en sede principal.\",\n  \"cliente_id\": 1,\n  \"area\": \"Infraestructura\",\n  \"prioridad\": \"alta\"\n}"
+              "raw": "{\n  \"titulo\": \"Falla en router de borde principal\",\n  \"descripcion\": \"Caída total de conectividad externa en sede central.\",\n  \"cliente_id\": 1,\n  \"area\": \"Infraestructura\",\n  \"prioridad\": \"alta\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/tickets",
-              "host": ["{{baseUrl}}"],
-              "path": ["tickets"]
-            }
+            "url": { "raw": "{{baseUrl}}/tickets", "host": ["{{baseUrl}}"], "path": ["tickets"] }
           }
         },
         {
-          "name": "Crear Ticket - Error Validación Faltan Campos (400 Bad Request)",
+          "name": "POST /api/tickets - Crear Ticket Prioridad Media (SLA 24h) (201 Created)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"titulo\": \"Sin descripcion ni cliente\"\n}"
+              "raw": "{\n  \"titulo\": \"Error en cálculo de IVA en factura #4092\",\n  \"descripcion\": \"La alícuota aplicada fue del 10% en lugar del 13% en producto gravado.\",\n  \"cliente_id\": 2,\n  \"area\": \"Facturación\",\n  \"prioridad\": \"media\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/tickets",
-              "host": ["{{baseUrl}}"],
-              "path": ["tickets"]
-            }
+            "url": { "raw": "{{baseUrl}}/tickets", "host": ["{{baseUrl}}"], "path": ["tickets"] }
           }
         },
         {
-          "name": "Obtener Ticket con Detalle e Historial (200 OK)",
+          "name": "POST /api/tickets - Crear Ticket Sin Agentes Disponibles (409 Conflict)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Consulta sobre área no existente\",\n  \"descripcion\": \"Debe fallar al no encontrar agente activo elegible.\",\n  \"cliente_id\": 1,\n  \"area\": \"Área Inexistente\",\n  \"prioridad\": \"media\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/tickets", "host": ["{{baseUrl}}"], "path": ["tickets"] }
+          }
+        },
+        {
+          "name": "POST /api/tickets - Error de Validación Sintáctica (400 Bad Request)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"A\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/tickets", "host": ["{{baseUrl}}"], "path": ["tickets"] }
+          }
+        },
+        {
+          "name": "GET /api/tickets/:id - Detalle Completo con Relaciones (200 OK)",
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/tickets/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["tickets", "1"]
-            }
+            "url": { "raw": "{{baseUrl}}/tickets/1", "host": ["{{baseUrl}}"], "path": ["tickets", "1"] }
           }
         },
         {
-          "name": "Obtener Ticket Inexistente (404 Not Found)",
+          "name": "GET /api/tickets/:id - No Encontrado (404 Not Found)",
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/tickets/9999",
-              "host": ["{{baseUrl}}"],
-              "path": ["tickets", "9999"]
-            }
+            "url": { "raw": "{{baseUrl}}/tickets/9999", "host": ["{{baseUrl}}"], "path": ["tickets", "9999"] }
           }
         },
         {
-          "name": "Transición de Estado Inválida (409 Conflict)",
+          "name": "PATCH /api/tickets/:id - Actualización de Datos (200 OK)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Falla en pasarela de pagos al checkout (Actualizado)\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/tickets/1", "host": ["{{baseUrl}}"], "path": ["tickets", "1"] }
+          }
+        },
+        {
+          "name": "PATCH /api/tickets/:id/estado - Transición Prohibida Directo a Cerrado (409 Conflict)",
           "request": {
             "method": "PATCH",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -264,15 +324,11 @@
               "mode": "raw",
               "raw": "{\n  \"estado\": \"cerrado\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/tickets/1/estado",
-              "host": ["{{baseUrl}}"],
-              "path": ["tickets", "1", "estado"]
-            }
+            "url": { "raw": "{{baseUrl}}/tickets/1/estado", "host": ["{{baseUrl}}"], "path": ["tickets", "1", "estado"] }
           }
         },
         {
-          "name": "Resolver Ticket sin Comentario Obligatorio (409 Conflict)",
+          "name": "PATCH /api/tickets/:id/estado - Intento Resolver SIN Comentario (409 Conflict)",
           "request": {
             "method": "PATCH",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -280,60 +336,77 @@
               "mode": "raw",
               "raw": "{\n  \"estado\": \"resuelto\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/tickets/2/estado",
-              "host": ["{{baseUrl}}"],
-              "path": ["tickets", "2", "estado"]
-            }
+            "url": { "raw": "{{baseUrl}}/tickets/2/estado", "host": ["{{baseUrl}}"], "path": ["tickets", "2", "estado"] }
           }
         },
         {
-          "name": "Resolver Ticket con Comentario Explicativo (200 OK - Transaccional)",
+          "name": "PATCH /api/tickets/:id/estado - Resolver CON Comentario Obligatorio (200 OK)",
           "request": {
             "method": "PATCH",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"estado\": \"resuelto\",\n  \"comentario\": \"Se regeneró la factura electrónica en el portal y se confirmó con el cliente.\",\n  \"agente_id\": 3\n}"
+              "raw": "{\n  \"estado\": \"resuelto\",\n  \"comentario\": \"Se corrigió el registro contable en la base tributaria y se emitió la nota de crédito correspondiente.\",\n  \"autor_id\": 3\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/tickets/2/estado",
-              "host": ["{{baseUrl}}"],
-              "path": ["tickets", "2", "estado"]
-            }
+            "url": { "raw": "{{baseUrl}}/tickets/2/estado", "host": ["{{baseUrl}}"], "path": ["tickets", "2", "estado"] }
+          }
+        },
+        {
+          "name": "PATCH /api/tickets/:id/estado - Cerrar Ticket Resuelto (200 OK)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"cerrado\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/tickets/3/estado", "host": ["{{baseUrl}}"], "path": ["tickets", "3", "estado"] }
           }
         }
       ]
     },
     {
-      "name": "Comentarios",
+      "name": "4. Comentarios e Historial",
       "item": [
         {
-          "name": "Listar Comentarios de un Ticket (200 OK)",
+          "name": "GET /api/tickets/:id/comentarios - Listar Comentarios (200 OK)",
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/tickets/1/comentarios",
-              "host": ["{{baseUrl}}"],
-              "path": ["tickets", "1", "comentarios"]
-            }
+            "url": { "raw": "{{baseUrl}}/tickets/1/comentarios", "host": ["{{baseUrl}}"], "path": ["tickets", "1", "comentarios"] }
           }
         },
         {
-          "name": "Agregar Comentario a Ticket (201 Created)",
+          "name": "POST /api/tickets/:id/comentarios - Agregar Comentario General (201 Created)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"autor_tipo\": \"agente\",\n  \"autor_id\": 1,\n  \"contenido\": \"Se envió técnico a revisar el enlace físico.\"\n}"
+              "raw": "{\n  \"autor_tipo\": \"agente\",\n  \"autor_id\": 1,\n  \"contenido\": \"Se estableció contacto telefónico con el proveedor de fibra óptica para coordinar diagnóstico conjunto.\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/tickets/1/comentarios",
-              "host": ["{{baseUrl}}"],
-              "path": ["tickets", "1", "comentarios"]
-            }
+            "url": { "raw": "{{baseUrl}}/tickets/1/comentarios", "host": ["{{baseUrl}}"], "path": ["tickets", "1", "comentarios"] }
+          }
+        },
+        {
+          "name": "GET /api/tickets/:id/historial - Consultar Trazabilidad (200 OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/tickets/1/historial", "host": ["{{baseUrl}}"], "path": ["tickets", "1", "historial"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Métricas y Resumen SQL",
+      "item": [
+        {
+          "name": "GET /api/resumen - Métricas SQL (200 OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/resumen", "host": ["{{baseUrl}}"], "path": ["resumen"] }
           }
         }
       ]
