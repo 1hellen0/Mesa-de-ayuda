@@ -5,8 +5,12 @@
 
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import app from '../src/app.js';
 import db from '../src/config/database.js';
+import { TICKET_AREAS, TICKET_PRIORITY } from '../src/utils/constants.js';
 
 let server;
 let baseUrl;
@@ -272,20 +276,26 @@ describe('4. Gestión de Tickets: Creación, SLA y Asignación Automática', () 
   });
 
   test('POST /api/tickets falla con 409 si no hay agentes activos en el área', async () => {
-    const res = await fetch(`${baseUrl}/tickets`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        titulo: 'Solicitud en área inexistente',
-        descripcion: 'Descripción del ticket de prueba',
-        cliente_id: 1,
-        area: 'Área Sin Agentes',
-        prioridad: 'media'
-      })
-    });
-    assert.equal(res.status, 409);
-    const body = await res.json();
-    assert.ok(body.error.includes('No hay agentes activos disponibles'));
+    // Desactivar temporalmente al único agente de Facturación (Andrés Gómez, id: 3)
+    db.prepare('UPDATE agentes SET activo = 0 WHERE id = 3').run();
+    try {
+      const res = await fetch(`${baseUrl}/tickets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo: 'Solicitud en área sin agentes activos',
+          descripcion: 'Descripción del ticket de prueba',
+          cliente_id: 1,
+          area: 'Facturación',
+          prioridad: 'media'
+        })
+      });
+      assert.equal(res.status, 409);
+      const body = await res.json();
+      assert.ok(body.error.includes('No hay agentes activos disponibles'));
+    } finally {
+      db.prepare('UPDATE agentes SET activo = 1 WHERE id = 3').run();
+    }
   });
 
   test('GET /api/tickets/:id devuelve información relacionada completa (cliente, agente, comentarios, historial)', async () => {
@@ -501,24 +511,30 @@ describe('8. Checkpoint Académico: Errores 400, 404, 409 y Reversión Transacci
   });
 
   test('Error 409 y Reversión: Falla en auto-asignación por área sin agentes no deja datos huérfanos', async () => {
-    const res = await fetch(`${baseUrl}/tickets`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        titulo: 'Ticket para área sin personal',
-        descripcion: 'Debe fallar con 409 y no dejar registros parciales',
-        cliente_id: 1,
-        area: 'Área Vencida Sin Personal',
-        prioridad: 'alta'
-      })
-    });
-    assert.equal(res.status, 409);
-    const body = await res.json();
-    assert.ok(body.error.includes('No hay agentes activos'));
+    // Desactivar temporalmente al único agente de Infraestructura (Sofía Ramos, id: 4)
+    db.prepare('UPDATE agentes SET activo = 0 WHERE id = 4').run();
+    try {
+      const res = await fetch(`${baseUrl}/tickets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo: 'Ticket para área sin personal',
+          descripcion: 'Debe fallar con 409 y no dejar registros parciales',
+          cliente_id: 1,
+          area: 'Infraestructura',
+          prioridad: 'alta'
+        })
+      });
+      assert.equal(res.status, 409);
+      const body = await res.json();
+      assert.ok(body.error.includes('No hay agentes activos'));
 
-    // Confirmar que la transacción revirtió y no hay ticket insertado
-    const checkSql = db.prepare("SELECT COUNT(*) as c FROM tickets WHERE titulo = 'Ticket para área sin personal'").get();
-    assert.equal(checkSql.c, 0, 'La transacción debe revertir la inserción del ticket');
+      // Confirmar que la transacción revirtió y no hay ticket insertado
+      const checkSql = db.prepare("SELECT COUNT(*) as c FROM tickets WHERE titulo = 'Ticket para área sin personal'").get();
+      assert.equal(checkSql.c, 0, 'La transacción debe revertir la inserción del ticket');
+    } finally {
+      db.prepare('UPDATE agentes SET activo = 1 WHERE id = 4').run();
+    }
   });
 
   test('Transacciones: Intento fallido de resolución sin comentario preserva estado, comentarios e historial', async () => {
@@ -544,3 +560,123 @@ describe('8. Checkpoint Académico: Errores 400, 404, 409 y Reversión Transacci
     assert.equal(historyAfter, historyBefore, 'No se debe insertar historial en caso de error');
   });
 });
+
+describe('9. Auditoría y Unificación del Catálogo Oficial de Áreas y Prioridades (PROMPT 5.2)', () => {
+  test('El catálogo TICKET_AREAS define exactamente las 3 áreas con soporte operativo', () => {
+    assert.deepEqual([...TICKET_AREAS], ['Soporte Técnico', 'Facturación', 'Infraestructura']);
+  });
+
+  test('Las prioridades permitidas coinciden estrictamente con alta, media y baja', () => {
+    assert.deepEqual(
+      Object.values(TICKET_PRIORITY).sort(),
+      ['alta', 'baja', 'media'].sort()
+    );
+  });
+
+  test('La base de datos SQLite tiene agentes activos únicamente en las 3 áreas oficiales', () => {
+    const activeAreas = db.prepare('SELECT DISTINCT area FROM agentes WHERE activo = 1 ORDER BY area ASC').all();
+    const areaNames = activeAreas.map(a => a.area);
+    assert.deepEqual(areaNames, ['Facturación', 'Infraestructura', 'Soporte Técnico']);
+  });
+
+  test('Cada área válida permite la creación exitosa de un ticket con auto-asignación', async () => {
+    for (const area of TICKET_AREAS) {
+      const res = await fetch(`${baseUrl}/tickets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo: `Ticket de verificación para área ${area}`,
+          descripcion: `Prueba automatizada de aceptación para el catálogo oficial en ${area}`,
+          cliente_id: 1,
+          area,
+          prioridad: 'media'
+        })
+      });
+      assert.equal(res.status, 201, `Creación en área '${area}' debe responder 201`);
+      const body = await res.json();
+      assert.equal(body.area, area);
+      assert.ok(body.agente_id, `Debe auto-asignar un agente en área '${area}'`);
+    }
+  });
+
+  test('El área inexistente/inventada Redes es rechazada en validación (HTTP 400)', async () => {
+    const res = await fetch(`${baseUrl}/tickets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titulo: 'Ticket con área Redes',
+        descripcion: 'Verificar que Redes no es admitida por el validador',
+        cliente_id: 1,
+        area: 'Redes',
+        prioridad: 'alta'
+      })
+    });
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error.includes('El área debe ser una de las siguientes'));
+  });
+
+  test('El área no catalogada Atención al Cliente es rechazada en validación (HTTP 400)', async () => {
+    const res = await fetch(`${baseUrl}/tickets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titulo: 'Ticket con área Atención al Cliente',
+        descripcion: 'Verificar rechazo en validación sintáctica/catálogo',
+        cliente_id: 1,
+        area: 'Atención al Cliente',
+        prioridad: 'media'
+      })
+    });
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.ok(body.error.includes('El área debe ser una de las siguientes'));
+  });
+
+  test('Petición con área válida del catálogo pero sin agentes activos retorna conflicto de negocio (HTTP 409)', async () => {
+    // Desactivar temporalmente al agente de Facturación
+    db.prepare('UPDATE agentes SET activo = 0 WHERE id = 3').run();
+    try {
+      const res = await fetch(`${baseUrl}/tickets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo: 'Ticket en área sin agentes disponibles',
+          descripcion: 'Pasa validación pero colisiona en auto-asignación',
+          cliente_id: 1,
+          area: 'Facturación',
+          prioridad: 'baja'
+        })
+      });
+      assert.equal(res.status, 409);
+      const body = await res.json();
+      assert.ok(body.error.includes("No hay agentes activos disponibles en el área 'Facturación'"));
+    } finally {
+      db.prepare('UPDATE agentes SET activo = 1 WHERE id = 3').run();
+    }
+  });
+
+  test('El frontend y n8n están sincronizados con el catálogo del backend (sin Redes)', () => {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const frontendConstantsPath = path.resolve(__dirname, '../../frontend/src/utils/constants.js');
+    const n8nWorkflowPath = path.resolve(__dirname, '../../n8n/workflows/mesa-ayuda-ai-agent.json');
+
+    const frontendCode = fs.readFileSync(frontendConstantsPath, 'utf8');
+    const n8nJson = JSON.parse(fs.readFileSync(n8nWorkflowPath, 'utf8'));
+
+    // Frontend paridad
+    for (const area of TICKET_AREAS) {
+      assert.ok(frontendCode.includes(`'${area}'`), `Frontend debe contener '${area}'`);
+    }
+    assert.ok(!frontendCode.includes("'Redes'"), "Frontend no debe contener 'Redes'");
+
+    // n8n paridad
+    const validateNode = n8nJson.nodes.find(n => n.name === 'Validar y Normalizar Resultado');
+    assert.ok(validateNode, 'Nodo de validación de n8n debe existir');
+    for (const area of TICKET_AREAS) {
+      assert.ok(validateNode.parameters.jsCode.includes(area), `n8n debe contener '${area}'`);
+    }
+    assert.ok(!validateNode.parameters.jsCode.includes("'Redes'"), "n8n no debe contener 'Redes'");
+  });
+});
+

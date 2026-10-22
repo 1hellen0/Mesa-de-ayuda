@@ -238,5 +238,218 @@
 9. **Próximo prompt recomendado:**
    **PROMPT 5 — Workflow de n8n con AI Agent y DeepSeek**.
 
+---
+
+### PROMPT 5 — Workflow n8n con AI Agent y DeepSeek
+
+1. **Objetivo:**
+   Diseñar, construir y verificar un workflow en n8n que utilice un AI Agent conectado al modelo DeepSeek (a través de la integración compatible con OpenAI) para procesar solicitudes de soporte y emitir tres recomendaciones deterministas:
+   - Prioridad sugerida: estrictamente `alta`, `media` o `baja`.
+   - Área sugerida: estrictamente una de las áreas válidas del sistema (`Soporte Técnico`, `Facturación`, `Infraestructura`, `Atención al Cliente`).
+   - Borrador de respuesta inicial cordial y profesional para el solicitante.
+   - Justificación técnica y marca explícita de `requiereRevisionHumana: true`.
+   Garantizar la inmutabilidad de la base de datos relacional y un manejo de errores robusto con respuestas HTTP 400 y 500 estandarizadas que eviten ramas colgadas.
+
+2. **Archivos creados y modificados:**
+   - `n8n/workflows/mesa-ayuda-ai-agent.json`: Definición completa del workflow para n8n v2.x con 10 nodos, manejo de ramas condicionales y respuestas estructuradas.
+   - `n8n/workflows/ticket-ai-agent-workflow.json`: Sincronización del archivo de workflow preexistente para garantizar coherencia en cualquier ruta de importación.
+   - `n8n/README.md`: Guía técnica y operativa detallada con diagramas de flujo, pasos de importación en n8n local, configuración de credenciales de DeepSeek, uso de Test URL vs Production URL, diagnóstico de errores y contrato de datos.
+   - `n8n/tests/workflow-validation.test.js`: Suite de pruebas automatizadas en Node.js que valida la sintaxis JSON, los nodos, la lógica de validación de entrada/salida y la inmutabilidad de SQLite.
+   - `frontend/.env` y `frontend/.env.example`: Actualización de `VITE_N8N_WEBHOOK_URL` a `http://localhost:5678/webhook/mesa-ayuda/analizar-ticket`.
+
+3. **Nodos del workflow y arquitectura:**
+   - `Webhook Inbound` (`n8n-nodes-base.webhook`): Recibe peticiones POST en `/mesa-ayuda/analizar-ticket` con `responseMode: responseNode`.
+   - `Normalizar y Validar Entrada` (`n8n-nodes-base.code`): Extrae y sanea los campos del cuerpo de la petición (`titulo`, `descripcion`, `clienteNombre`, `empresa`, `area`, `prioridad`), validando longitudes mínimas y presencia obligatoria.
+   - `IF Datos Válidos` (`n8n-nodes-base.if`): Bifurca hacia el agente de IA si los datos son correctos o al nodo de rechazo si faltan campos obligatorios.
+   - `Respond 400 - Entrada Inválida` (`n8n-nodes-base.respondToWebhook`): Retorna HTTP 400 con el contrato de error ante títulos o descripciones vacías.
+   - `AI Agent (DeepSeek)` (`@n8n/n8n-nodes-langchain.agent`): Orquesta el análisis semántico bajo instrucciones estrictas de formato JSON y catálogo cerrado de áreas y prioridades. Configurado con `onError: continueRegularOutput` para evitar bloqueos ante fallos de conexión.
+   - `DeepSeek Chat Model (OpenAI Compatible)` (`@n8n/n8n-nodes-langchain.lmChatOpenAi`): Conexión con `https://api.deepseek.com`, modelo `deepseek-chat` (o compatible), temperatura baja (0.2) y credenciales aisladas.
+   - `Validar y Normalizar Resultado` (`n8n-nodes-base.code`): Limpia bloques markdown, parsea el JSON emitido por la IA y valida contra la lista blanca estricta de prioridades y áreas.
+   - `IF Salida Válida` (`n8n-nodes-base.if`): Bifurca hacia la respuesta de éxito o al manejador de error de IA.
+   - `Respond 200 - Éxito` (`n8n-nodes-base.respondToWebhook`): Devuelve HTTP 200 con `{ ok: true, data: { prioridadSugerida, areaSugerida, respuestaInicial, justificacion, requiereRevisionHumana: true }, error: null }`.
+   - `Respond 500 - Error IA` (`n8n-nodes-base.respondToWebhook`): Devuelve HTTP 500 con `{ ok: false, data: null, error: "mensaje descriptivo" }` ante fallos de credenciales o alucinaciones del modelo.
+
+4. **Contratos de entrada y salida:**
+   - **Entrada:** `{ "titulo": "...", "descripcion": "...", "clienteNombre": "...", "empresa": "...", "area": "...", "prioridad": "..." }`
+   - **Salida Exitosa (HTTP 200):**
+     `{ "ok": true, "data": { "prioridadSugerida": "alta", "areaSugerida": "Infraestructura", "respuestaInicial": "...", "justificacion": "...", "requiereRevisionHumana": true }, "error": null }`
+   - **Salida de Error (HTTP 400 / 500):**
+     `{ "ok": false, "data": null, "error": "Descripción clara del problema." }`
+
+5. **Configuración del modelo:**
+   - Tipo de nodo: `lmChatOpenAi` (compatible con OpenAI).
+   - URL Base: `https://api.deepseek.com`.
+   - Modelo: `deepseek-chat` (con soporte para `deepseek-flash` según el backend de inferencia).
+   - Credenciales: Aisladas en n8n bajo el nombre `DeepSeek API (OpenAI Compatible)`. **Sin secretos expuestos en código ni repositorios.**
+
+6. **Pruebas ejecutadas y resultados reales:**
+   - Suite `n8n/tests/workflow-validation.test.js` ejecutada con Node.js `node --test`:
+     - Test 1 (Estructura): Archivo JSON válido y nodos indispensables presentes. &rarr; Aprobado.
+     - Test 2 (Entrada válida): Procesamiento y normalización exitosa de payload completo. &rarr; Aprobado.
+     - Test 3 (Entrada inválida): Rechazo con HTTP 400 y mensaje explicativo ante omisión de título o descripción. &rarr; Aprobado.
+     - Test 4 (Prioridad inválida): Rechazo controlado si el modelo intenta emitir 'urgente' o valor no soportado. &rarr; Aprobado.
+     - Test 5 (Área inválida): Rechazo controlado si el modelo intenta sugerir áreas fuera del catálogo oficial (ej. 'Ventas'). &rarr; Aprobado.
+     - Test 6 (Fallo de DeepSeek): Manejo controlado con HTTP 500 ante fallo de API Key o cuota sin dejar colgado el webhook. &rarr; Aprobado.
+     - Test 7 (Contrato estricto): Verificación de todas las claves requeridas en `data`. &rarr; Aprobado.
+     - Test 8 (Inmutabilidad): Comprobación estricta de conteos en SQLite (`tickets`, `comentarios`, `historial`, `agentes`, `clientes`) antes y después del análisis de IA, confirmando 0 modificaciones en base de datos. &rarr; Aprobado.
+   - Resumen: **8 de 8 pruebas aprobadas (100%)**.
+
+7. **Problemas encontrados y correcciones:**
+   - *Riesgo de ejecuciones "colgadas" por errores del LLM:* Por defecto, si el nodo del agente de IA falla por credenciales o timeout, n8n detiene la ejecución sin llamar al nodo `Respond to Webhook`. Se solucionó configurando `onError: continueRegularOutput` e incorporando en el nodo de validación la detección del objeto de error para responder inmediatamente con HTTP 500 y descripción limpia.
+   - *Formateo de salida Markdown:* Los modelos de DeepSeek ocasionalmente envuelven la salida en bloques ````json ... ````. Se implementó una rutina de saneamiento por expresiones regulares y búsqueda de delimitadores `{ ... }` antes del parseo JSON.
+
+8. **Limitaciones pendientes:**
+   - La ejecución en vivo de llamadas reales al modelo DeepSeek requiere que el usuario configure su API Key personal en la interfaz de n8n (`http://localhost:5678`) bajo la credencial `DeepSeek API (OpenAI Compatible)`.
+
+9. **Próximo paso:**
+   **PROMPT 6 — Integración del frontend React con el webhook de n8n**.
+
+---
+
+## PROMPT 5.1 — Auditoría correctiva del workflow n8n con DeepSeek
+
+1. **Objetivo de la auditoría:**
+   Revisar y corregir en profundidad el workflow existente de n8n para análisis de tickets con IA, unificando el modelo de lenguaje en `deepseek-flash`, robusteciendo el manejo de errores con la salida dedicada de error de n8n (`continueErrorOutput`), garantizando respuestas HTTP con códigos de estado explícitos y objetos JSON reales (evitando dobles codificaciones de strings), y sincronizando de forma estricta las plantillas JSON del proyecto.
+
+2. **Archivos auditados y modificados:**
+   - `n8n/workflows/mesa-ayuda-ai-agent.json`: Workflow principal actualizado con 12 nodos, modelo `deepseek-flash`, bifurcación física de errores de ejecución (`continueErrorOutput`), formateadores dedicados y respuestas HTTP explícitas (200, 400, 500) con `respondWith: "firstIncomingItem"`.
+   - `n8n/workflows/ticket-ai-agent-workflow.json`: Sincronizado para ser idéntico byte a byte con el workflow principal.
+   - `n8n/README.md`: Documentación reescrita con especificación unificada de `deepseek-flash`, diagrama ASCII del flujo con bifurcación de errores, detalle del contrato de respuesta `{ ok, data, error }`, y guía paso a paso de pruebas manuales y diagnósticos con cURL y PowerShell.
+   - `n8n/tests/workflow-validation.test.js`: Suite ampliada de 8 a 12 pruebas automatizadas que verifican sintaxis, sincronización de plantillas, configuración del modelo, manejo de ramas de error, códigos HTTP, serialización nativa de JSON, ausencia de secretos, lógica de nodos e inmutabilidad en SQLite.
+
+3. **Decisiones técnicas y mejoras arquitectónicas:**
+   - **Unificación del modelo de inferencia:** Se configuró exclusivamente `deepseek-flash` en el nodo de chat compatible con OpenAI (`@n8n/n8n-nodes-langchain.lmChatOpenAi`), fijando la URL base en `https://api.deepseek.com`. Se removieron todas las instrucciones y notas ambiguas que presentaban `deepseek-chat` y `deepseek-flash` de manera intercambiable o indeterminada.
+   - **Corrección de `onError: continueErrorOutput`:** Anteriormente se utilizaba `onError: continueRegularOutput`, lo que mezclaba los errores de ejecución del agente (401 invalid key, 429 quota, timeouts) con las respuestas regulares en la salida principal (`main[0]`), obligando al nodo de validación a heurísticas para deducir si hubo fallo. Se corrigió a `onError: continueErrorOutput`, permitiendo que n8n bifurque los fallos de runtime directamente a la salida de error (`main[1]`), pasando por el nodo `Formatear Error Modelo` hacia `Respond 500 - Error IA`.
+   - **Garantía de JSON nativo y eliminación de doble serialización:** Se configuró `respondWith: "firstIncomingItem"` en los tres nodos de respuesta (`Respond 200 - Éxito`, `Respond 400 - Entrada Inválida`, `Respond 500 - Error IA`). Esto asegura que n8n entregue `item.json` como un objeto JSON real en la cabecera `Content-Type: application/json`, evitando la serialización doble (evitando strings JSON escapadas como `"\"{\\\"ok\\\":...}\""`).
+   - **Códigos HTTP explícitos:**
+     - Entrada inválida (omisión o campos vacíos de título/descripción): HTTP 400.
+     - Éxito con recomendación válida (prioridad y área dentro del catálogo): HTTP 200.
+     - Error de inferencia, timeout, cuota o alucinación de catálogo inválido: HTTP 500.
+   - **Contrato uniforme estricto:** Todas las salidas responden bajo `{ ok: boolean, data: object | null, error: string | null }`.
+
+4. **Pruebas automatizadas ejecutadas y resultados:**
+   Se ejecutó la suite `n8n/tests/workflow-validation.test.js` bajo Node.js (`node --test`), obteniendo:
+   - **Test 1:** Sintaxis JSON y estructura de ambos workflows. &rarr; **APROBADO**
+   - **Test 2:** Sincronización idéntica entre `mesa-ayuda-ai-agent.json` y `ticket-ai-agent-workflow.json`. &rarr; **APROBADO**
+   - **Test 3:** Configuración de modelo unificado `deepseek-flash` y baseURL `https://api.deepseek.com`. &rarr; **APROBADO**
+   - **Test 4:** Estrategia de errores `continueErrorOutput` y conexión de salida de error `main[1]`. &rarr; **APROBADO**
+   - **Test 5:** Códigos HTTP explícitos (200, 400, 500) y `respondWith: firstIncomingItem`. &rarr; **APROBADO**
+   - **Test 6:** Ausencia total de API keys o credenciales privadas en los archivos exportados. &rarr; **APROBADO**
+   - **Test 7:** Lógica de validación de entrada (rechazo ante campos faltantes, aceptación ante datos válidos). &rarr; **APROBADO**
+   - **Test 8:** Validación de salida del modelo (aceptación de catálogo válido, rechazo de áreas o prioridades inventadas). &rarr; **APROBADO**
+   - **Test 9:** Formateo de error en fallo de ejecución de DeepSeek (Auth, Quota, Timeout). &rarr; **APROBADO**
+   - **Test 10:** Uniformidad estricta del contrato de respuesta `{ ok, data, error }`. &rarr; **APROBADO**
+   - **Test 11:** Inmutabilidad garantizada de la base de datos SQLite durante el análisis. &rarr; **APROBADO**
+   - **Test 12:** Carga e instanciación formal del workflow usando las clases oficiales del paquete `n8n-workflow` (v2.38.6). &rarr; **APROBADO**
+   - **Resultado general:** **12 de 12 pruebas aprobadas (100% de éxito, 0 fallos).**
+
+5. **Diferenciación entre validaciones automáticas y pruebas manuales:**
+   - **Validaciones automáticas completadas:** Integridad de archivos JSON, tipado de nodos, conexiones de grafos, simulación de ramas, sanitización de payloads e inmutabilidad de la base de datos SQLite.
+   - **Procedimientos manuales requeridos en n8n UI:**
+     1. Importar `mesa-ayuda-ai-agent.json` en la interfaz gráfica de n8n (`http://localhost:5678`).
+     2. Configurar la credencial `DeepSeek API (OpenAI Compatible)` asociando una clave API real con créditos disponibles.
+     3. Activar la escucha de pruebas en n8n ("Test step" o "Test workflow") y enviar una petición POST a `/webhook-test/mesa-ayuda/analizar-ticket` para comprobar la inferencia real de DeepSeek y la recepción de HTTP 200.
+     4. Probar la rama de error simulando credenciales inválidas o forzando un payload corrupto desde n8n UI para verificar visualmente el camino hacia el HTTP 500.
+     5. Publicar el workflow ("Active") para habilitar el endpoint de producción `/webhook/mesa-ayuda/analizar-ticket`.
+
+6. **Limitaciones pendientes:**
+   - No se ejecutó una inferencia HTTP real contra la API de DeepSeek desde el agente local durante esta auditoría, debido a que no se dispone ni se deben registrar credenciales reales en el entorno de desarrollo automatizado.
+   - La ejecución en vivo queda sujeta a la vinculación de la credencial en n8n por parte del operador humano.
+
+7. **Próximo paso:**
+   **PROMPT 6 — Integración del frontend React con el webhook de n8n**.
+
+---
+
+## PROMPT 5.2 — Auditoría y unificación del catálogo de áreas y prioridades
+
+1. **Catálogo oficial de áreas identificado y fuente de verdad:**
+   - Se realizó una auditoría exhaustiva en la base de datos real SQLite (`schema.sql` y `seeds.sql`), repositorios, servicios (`ticketService.js`), controladores, validadores y tests.
+   - En la base de datos real y en las reglas operativas de asignación automática, **únicamente existen 3 áreas con soporte y agentes asignables**:
+     1. `Soporte Técnico` (Carlos Mendoza [id: 1, activo], Laura Fernández [id: 2, activo], Diego Martínez [id: 5, inactivo]).
+     2. `Facturación` (Andrés Gómez [id: 3, activo]).
+     3. `Infraestructura` (Sofía Ramos [id: 4, activo]).
+   - No existe ningún agente ni ticket en la base de datos para otra área. Cualquier petición hacia otra área detona una excepción de regla de negocio (`ConflictError` HTTP 409: "No hay agentes activos disponibles en el área '...' para la asignación automática").
+   - Se formalizó esta definición como la única fuente de verdad creando `export const TICKET_AREAS = Object.freeze(['Soporte Técnico', 'Facturación', 'Infraestructura'])` en `backend/src/utils/constants.js`.
+
+2. **Evaluación de `Redes` y `Atención al Cliente`:**
+   - **`Redes`:** No es un área válida. Se confirmó mediante búsqueda global que `Redes` nunca existió en el esquema de base de datos, semillas, validadores, frontend ni workflows. Su mención provino exclusivamente de un ejemplo ilustrativo accidental (hallucination) en el bloque cURL del informe del PROMPT 5.1. Quedó completamente erradicada.
+   - **`Atención al Cliente`:** Fue introducida de manera desarticulada en `frontend/src/utils/constants.js` durante el PROMPT 4 y copiada a n8n en el PROMPT 5 sin respaldo en el backend (0 agentes en semillas, 0 tickets). Si un usuario o la IA intentaba crear un ticket en `Atención al Cliente`, el backend lo rechazaba con HTTP 409. Siguiendo el principio de que el backend es la fuente de verdad, `Atención al Cliente` fue eliminada de las listas permitidas de frontend y n8n, unificando todo en las 3 áreas con cobertura operativa real.
+
+3. **Prioridades oficiales encontradas:**
+   - Se confirmó paridad total (100% consistente):
+     - Restricción SQLite: `CHECK (prioridad IN ('baja', 'media', 'alta'))`
+     - Backend constants: `TICKET_PRIORITY: { BAJA: 'baja', MEDIA: 'media', ALTA: 'alta' }`
+     - Backend validator: `z.enum([TICKET_PRIORITY.BAJA, TICKET_PRIORITY.MEDIA, TICKET_PRIORITY.ALTA])`
+     - Frontend constants: `TICKET_PRIORITY: { BAJA: 'baja', MEDIA: 'media', ALTA: 'alta' }`
+     - n8n workflows: `VALID_PRIORITIES = ['baja', 'media', 'alta']`
+     - Tiempos de SLA: Alta = 4h, Media = 24h, Baja = 72h.
+
+4. **Archivos modificados y motivo de cada cambio:**
+   - `backend/src/utils/constants.js`: Se definió y exportó `TICKET_AREAS` (`['Soporte Técnico', 'Facturación', 'Infraestructura']`) como fuente de verdad canónica.
+   - `frontend/src/utils/constants.js`: Se actualizó `COMMON_AREAS` para contener exactamente las 3 áreas oficiales y se exportó `TICKET_AREAS` como alias.
+   - `n8n/workflows/mesa-ayuda-ai-agent.json`: Se actualizaron las instrucciones de clasificación del prompt del AI Agent, el system message y el nodo `Validar y Normalizar Resultado` para restringir `VALID_AREAS` a las 3 áreas del backend.
+   - `n8n/workflows/ticket-ai-agent-workflow.json`: Sincronizado idéntico al workflow principal.
+   - `n8n/README.md`: Se corrigió el listado del catálogo en la sección 4 y se confirmó que los ejemplos cURL/PowerShell usan únicamente áreas oficiales.
+   - `n8n/tests/workflow-validation.test.js`: Se actualizó `VALID_AREAS` en el mock de pruebas, se añadieron casos para verificar el rechazo de `Redes` y `Atención al Cliente`, y se agregó el Test 13 para auditar la paridad del catálogo y la ausencia de `Redes`.
+   - `backend/tests/integration.test.js`: Se incorporó la suite `9. Auditoría y Unificación del Catálogo Oficial de Áreas y Prioridades (PROMPT 5.2)` con 7 nuevas pruebas de integración que validan el catálogo canónico, concordancia con SQLite, creación con auto-asignación por área, rechazo controlado (409) de `Redes` y `Atención al Cliente`, y sincronización de código con frontend y n8n.
+
+5. **Pruebas ejecutadas y resultados reales:**
+   - **Backend Integration Tests (`npm test` en `backend/`):** 44 de 44 pruebas aprobadas (9 suites, 0 fallos).
+     - Se crearon tickets en las 3 áreas oficiales (`Soporte Técnico`, `Facturación`, `Infraestructura`), comprobando código 201 y auto-asignación a agentes activos.
+     - Se comprobó el rechazo controlado (HTTP 409) de `Redes` y `Atención al Cliente`.
+   - **Database Verification Script (`node database/verifyDb.js`):** 9 de 9 pruebas de integridad relacional en SQLite aprobadas.
+   - **n8n Workflow Tests (`node --test tests/workflow-validation.test.js` en `n8n/`):** 13 de 13 pruebas aprobadas.
+     - Validador rechaza `Redes` y `Atención al Cliente` con mensaje descriptivo y conduce al HTTP 500.
+     - Test de paridad de catálogo confirma consistencia total entre archivos.
+   - **Frontend Build (`npm run build` en `frontend/`):** Compilación Vite satisfactoria (0 errores de TypeScript/JSX/módulos).
+
+6. **Discrepancias no resueltas:**
+   - Ninguna. Todas las discrepancias detectadas (`Redes`, `Atención al Cliente`, ausencia de constante en backend) fueron subsanadas y probadas.
+
+7. **Confirmación de que backend, frontend y n8n utilizan el mismo catálogo:**
+   - Confirmado: backend (`TICKET_AREAS`), frontend (`COMMON_AREAS` / `TICKET_AREAS`) y n8n (`VALID_AREAS`) comparten de forma estricta el conjunto `['Soporte Técnico', 'Facturación', 'Infraestructura']`.
+
+8. **Próximo paso:**
+   **PROMPT 6 — Integración de React con n8n y DeepSeek**.
+
+---
+
+## PROMPT 5.3 — Verificación final de la validación de áreas en el backend
+
+1. **Objetivo de la verificación:**
+   Asegurar que la constante canónica `TICKET_AREAS` definida en `backend/src/utils/constants.js` se utilice de forma activa en los esquemas de validación Zod del backend (`ticketValidator.js` y `agentValidator.js`), distinguiendo con precisión semántica entre:
+   - Error de validación HTTP 400: Entrada con área fuera del catálogo oficial (`Redes`, `Atención al Cliente`, etc.).
+   - Conflicto de negocio HTTP 409: Petición con área válida del catálogo oficial (`Soporte Técnico`, `Facturación`, `Infraestructura`) pero que en el momento carece de agentes activos disponibles para auto-asignación.
+
+2. **Código revisado y modificaciones implementadas:**
+   - `backend/src/validators/ticketValidator.js`:
+     - Se importó `TICKET_AREAS` desde `../utils/constants.js`.
+     - Se actualizó el campo `area` en `createTicketSchema` y `updateTicketSchema` reemplazando la validación genérica `z.string().trim().min(2)` por `z.enum([TICKET_AREAS[0], ...TICKET_AREAS.slice(1)])`, garantizando el rechazo inmediato con HTTP 400 antes de ejecutar la lógica de base de datos o auto-asignación.
+   - `backend/src/validators/agentValidator.js`:
+     - Se importó `TICKET_AREAS` y se aplicó la misma validación estricta en `createAgentSchema` y `updateAgentSchema`, impidiendo registrar agentes en áreas espurias.
+   - `backend/tests/integration.test.js`:
+     - Se adaptaron y enriquecieron las pruebas de integración para verificar explícitamente:
+       1. Las 3 áreas oficiales (`Soporte Técnico`, `Facturación`, `Infraestructura`) superan la validación sintáctica y completan la creación (HTTP 201).
+       2. Áreas no catalogadas (`Redes` y `Atención al Cliente`) son rechazadas a nivel de validación respondiendo estrictamente **HTTP 400 Bad Request**.
+       3. Peticiones con área válida pero sin agentes activos disponibles (simulada desactivando temporalmente al agente del área) responden **HTTP 409 Conflict** con mensaje explicativo.
+       4. Las 45 pruebas de integración del backend y las 9 pruebas de SQLite pasan limpiamente sin regresiones.
+
+3. **Pruebas ejecutadas y resultados reales:**
+   - **Backend Integration Tests (`npm test`):** 45 pruebas aprobadas en 9 suites (0 fallos).
+   - **Database Integrity Verification (`node database/verifyDb.js`):** 9 de 9 verificaciones aprobadas (0 fallos).
+   - **n8n Workflow Validation Tests (`node --test tests/workflow-validation.test.js`):** 13 de 13 pruebas aprobadas (0 fallos).
+   - **Frontend Build (`npm run build`):** Compilación exitosa en 18.7s sin errores.
+
+4. **Confirmación de integridad arquitectónica:**
+   Se confirma que las reglas de negocio (SLA de 4h, 24h y 72h, cálculo de `fecha_limite`, asignación automática por menor carga de agentes activos, transiciones de estado, comentarios obligatorios de resolución e historial cronológico) permanecen 100% intactas y operativas. La paridad de catálogo entre backend, frontend y n8n es absoluta.
+
+5. **Próximo paso:**
+   **PROMPT 6 — Integración de React con n8n y DeepSeek**.
+
+
+
+
+
 
 

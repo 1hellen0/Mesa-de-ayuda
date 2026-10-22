@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TICKET_STATUS, TICKET_PRIORITY } from '../utils/constants.js';
+import { TICKET_STATUS, TICKET_PRIORITY, TICKET_AREAS } from '../utils/constants.js';
 
 export const ticketIdParamSchema = z.object({
   id: z.coerce.number().int().positive({ message: 'El ID de ticket debe ser un número entero positivo' })
@@ -9,7 +9,9 @@ export const createTicketSchema = z.object({
   titulo: z.string().trim().min(3, { message: 'El título debe tener al menos 3 caracteres' }),
   descripcion: z.string().trim().min(5, { message: 'La descripción debe tener al menos 5 caracteres' }),
   cliente_id: z.coerce.number().int().positive({ message: 'cliente_id debe ser un entero positivo' }),
-  area: z.string().trim().min(2, { message: 'El área es requerida' }),
+  area: z.enum([TICKET_AREAS[0], ...TICKET_AREAS.slice(1)], {
+    errorMap: () => ({ message: `El área debe ser una de las siguientes: ${TICKET_AREAS.join(', ')}` })
+  }),
   prioridad: z.enum([TICKET_PRIORITY.BAJA, TICKET_PRIORITY.MEDIA, TICKET_PRIORITY.ALTA], {
     errorMap: () => ({ message: "La prioridad debe ser 'baja', 'media' o 'alta'" })
   })
@@ -18,7 +20,9 @@ export const createTicketSchema = z.object({
 export const updateTicketSchema = z.object({
   titulo: z.string().trim().min(3).optional(),
   descripcion: z.string().trim().min(5).optional(),
-  area: z.string().trim().min(2).optional(),
+  area: z.enum([TICKET_AREAS[0], ...TICKET_AREAS.slice(1)], {
+    errorMap: () => ({ message: `El área debe ser una de las siguientes: ${TICKET_AREAS.join(', ')}` })
+  }).optional(),
   prioridad: z.enum([TICKET_PRIORITY.BAJA, TICKET_PRIORITY.MEDIA, TICKET_PRIORITY.ALTA]).optional(),
   agente_id: z.coerce.number().int().positive().optional().nullable()
 }).refine((data) => Object.keys(data).length > 0, {

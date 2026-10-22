@@ -39,6 +39,8 @@ export const HISTORY_EVENT_TYPES = Object.freeze({
 export const COMMON_AREAS = Object.freeze([
   'Soporte Técnico',
   'Facturación',
-  'Infraestructura',
-  'Atención al Cliente'
+  'Infraestructura'
 ]);
+
+export const TICKET_AREAS = COMMON_AREAS;
+

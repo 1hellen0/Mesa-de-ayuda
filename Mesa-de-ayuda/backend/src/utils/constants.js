@@ -15,6 +15,12 @@ export const TICKET_PRIORITY = Object.freeze({
   ALTA: 'alta'
 });
 
+export const TICKET_AREAS = Object.freeze([
+  'Soporte Técnico',
+  'Facturación',
+  'Infraestructura'
+]);
+
 export const SLA_HOURS = Object.freeze({
   [TICKET_PRIORITY.ALTA]: 4,
   [TICKET_PRIORITY.MEDIA]: 24,

@@ -1,32 +1,190 @@
 {
-  "name": "Mesa de Ayuda - Ticket AI Agent (DeepSeek)",
+  "name": "Mesa de Ayuda - AI Agent con DeepSeek",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "ticket-ai-suggestions",
-        "responseMode": "lastNode",
+        "path": "mesa-ayuda/analizar-ticket",
+        "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook-trigger",
+      "id": "webhook-inbound-node",
       "name": "Webhook Inbound",
       "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [160, 300],
+      "webhookId": "mesa-ayuda-analizar-ticket"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawBody = $input.item.json.body || $input.item.json;\n\nconst titulo = typeof rawBody.titulo === 'string' ? rawBody.titulo.trim() : '';\nconst descripcion = typeof rawBody.descripcion === 'string' ? rawBody.descripcion.trim() : '';\nconst areaActual = typeof rawBody.area === 'string' ? rawBody.area.trim() : null;\nconst prioridadActual = typeof rawBody.prioridad === 'string' ? rawBody.prioridad.trim() : null;\nconst clienteNombre = typeof rawBody.clienteNombre === 'string' ? rawBody.clienteNombre.trim() : (typeof rawBody.cliente_nombre === 'string' ? rawBody.cliente_nombre.trim() : 'Cliente');\nconst empresa = typeof rawBody.empresa === 'string' ? rawBody.empresa.trim() : (typeof rawBody.cliente_empresa === 'string' ? rawBody.cliente_empresa.trim() : null);\n\nlet isValid = true;\nlet errorMessage = null;\n\nif (!titulo) {\n  isValid = false;\n  errorMessage = \"El campo 'titulo' es obligatorio y no puede estar vacío.\";\n} else if (!descripcion) {\n  isValid = false;\n  errorMessage = \"El campo 'descripcion' es obligatorio y no puede estar vacío.\";\n} else if (titulo.length < 3) {\n  isValid = false;\n  errorMessage = \"El campo 'titulo' debe tener al menos 3 caracteres.\";\n} else if (descripcion.length < 5) {\n  isValid = false;\n  errorMessage = \"El campo 'descripcion' debe tener al menos 5 caracteres.\";\n}\n\nreturn [{\n  json: {\n    isValid,\n    errorMessage,\n    titulo,\n    descripcion,\n    areaActual,\n    prioridadActual,\n    clienteNombre,\n    empresa\n  }\n}];"
+      },
+      "id": "normalize-input-node",
+      "name": "Normalizar y Validar Entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [380, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-is-valid-input",
+              "leftValue": "={{ $json.isValid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-input-valid-node",
+      "name": "IF Datos Válidos",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    ok: false,\n    data: null,\n    error: $input.item.json.errorMessage || \"Datos de entrada inválidos. Los campos 'titulo' y 'descripcion' son obligatorios.\"\n  }\n}];"
+      },
+      "id": "format-error-400-node",
+      "name": "Formatear Error 400",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [820, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-400-node",
+      "name": "Respond 400 - Entrada Inválida",
+      "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [250, 300]
+      "position": [1040, 480]
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Actúa como un asistente técnico de mesa de ayuda. Analiza el siguiente ticket y determina:\n1. Área adecuada (ej. Soporte Técnico, Facturación, Infraestructura)\n2. Prioridad recomendada (baja, media, alta)\n3. Borrador de primera respuesta cordial para el cliente.\n\nTítulo: {{ $json.body.titulo }}\nDescripción: {{ $json.body.descripcion }}\n\nResponde estrictamente en formato JSON con la siguiente estructura:\n{\n  \"area_sugerida\": \"string\",\n  \"prioridad_sugerida\": \"baja\" | \"media\" | \"alta\",\n  \"justificacion\": \"string\",\n  \"borrador_respuesta\": \"string\"\n}",
+        "text": "=Analiza el siguiente ticket de soporte técnico y genera recomendaciones de clasificación y respuesta:\n\nDATOS DE LA SOLICITUD:\n- Título: {{ $json.titulo }}\n- Descripción: {{ $json.descripcion }}\n- Cliente solicitante: {{ $json.clienteNombre }}{{ $json.empresa ? ' (' + $json.empresa + ')' : '' }}\n- Área actual: {{ $json.areaActual || 'Sin asignar' }}\n- Prioridad actual: {{ $json.prioridadActual || 'Sin asignar' }}\n\nREGLAS DE CLASIFICACIÓN:\n1. 'prioridadSugerida': Debe ser exactamente una de: \"alta\", \"media\" o \"baja\".\n   - \"alta\": Incidentes críticos, caídas de servicio, fallas en pasarela de pagos o indisponibilidad.\n   - \"media\": Errores en facturación, fallas funcionales no bloqueantes o consultas regulares.\n   - \"baja\": Consultas de horarios, capacitación o dudas generales.\n2. 'areaSugerida': Debe ser exactamente una de las siguientes áreas válidas del sistema:\n   - \"Soporte Técnico\"\n   - \"Facturación\"\n   - \"Infraestructura\"\n3. 'respuestaInicial': Redacta un borrador cordial y profesional dirigido a {{ $json.clienteNombre }} acusando recibo de su solicitud sobre \"{{ $json.titulo }}\". No prometas plazos de resolución no verificados.\n4. 'justificacion': Explica brevemente el motivo técnico de la prioridad y área sugeridas.\n5. 'requiereRevisionHumana': Debe ser true.\n\nResponde ÚNICAMENTE en JSON con la siguiente estructura:\n{\n  \"prioridadSugerida\": \"alta\" | \"media\" | \"baja\",\n  \"areaSugerida\": \"Soporte Técnico\" | \"Facturación\" | \"Infraestructura\",\n  \"respuestaInicial\": \"texto de respuesta...\",\n  \"justificacion\": \"justificación técnica concisa...\",\n  \"requiereRevisionHumana\": true\n}",
         "options": {
-          "systemMessage": "Eres un clasificador experto de tickets de soporte técnico. Responde únicamente en JSON válido."
+          "systemMessage": "Eres el Agente Experto de Triaje de la Mesa de Ayuda con SLA e Historial. Analiza el ticket y clasifícalo estrictamente en las áreas: 'Soporte Técnico', 'Facturación', 'Infraestructura', y prioridades: 'alta', 'media', 'baja'. Responde estrictamente un objeto JSON válido sin bloques markdown ni texto adicional."
         }
       },
-      "id": "ai-agent-node",
+      "id": "ai-agent-deepseek-node",
       "name": "AI Agent (DeepSeek)",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.6,
-      "position": [480, 300]
+      "position": [860, 200],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": "deepseek-flash",
+        "options": {
+          "baseURL": "https://api.deepseek.com",
+          "temperature": 0.2,
+          "maxTokens": 1000
+        }
+      },
+      "id": "deepseek-chat-model-node",
+      "name": "DeepSeek Chat Model (OpenAI Compatible)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [860, 360],
+      "credentials": {
+        "openAiApi": {
+          "id": "DEEPSEEK_CREDENTIAL_ID",
+          "name": "DeepSeek API (OpenAI Compatible)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const err = $input.item.json.error || {};\nconst msg = err.message || (typeof err === 'string' ? err : JSON.stringify(err));\nreturn [{\n  json: {\n    ok: false,\n    data: null,\n    error: `Fallo en el servicio de DeepSeek: ${msg || 'Error de conexión, tiempo de espera o credencial no configurada.'}`\n  }\n}];"
+      },
+      "id": "format-model-error-node",
+      "name": "Formatear Error Modelo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "const VALID_AREAS = [\n  'Soporte Técnico',\n  'Facturación',\n  'Infraestructura'\n];\n\nconst VALID_PRIORITIES = ['baja', 'media', 'alta'];\n\nconst inputItem = $input.item.json;\n\n// 1. Extraer texto generado por el agente\nlet rawOutput = '';\nif (typeof inputItem.output === 'string') {\n  rawOutput = inputItem.output;\n} else if (typeof inputItem.text === 'string') {\n  rawOutput = inputItem.text;\n} else if (typeof inputItem.response === 'string') {\n  rawOutput = inputItem.response;\n} else if (inputItem.output && typeof inputItem.output === 'object') {\n  rawOutput = JSON.stringify(inputItem.output);\n} else {\n  rawOutput = JSON.stringify(inputItem);\n}\n\n// 2. Parsear JSON limpiando posibles bloques markdown\nlet parsed = null;\ntry {\n  let cleanJson = String(rawOutput).trim();\n  if (cleanJson.startsWith('```json')) {\n    cleanJson = cleanJson.replace(/^```json\\s*/, '').replace(/\\s*```$/, '');\n  } else if (cleanJson.startsWith('```')) {\n    cleanJson = cleanJson.replace(/^```\\s*/, '').replace(/\\s*```$/, '');\n  }\n\n  const firstBrace = cleanJson.indexOf('{');\n  const lastBrace = cleanJson.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1) {\n    cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);\n  }\n\n  parsed = JSON.parse(cleanJson);\n} catch (err) {\n  return [{\n    json: {\n      isValidOutput: false,\n      ok: false,\n      data: null,\n      error: `La salida generada por DeepSeek no pudo ser interpretada como JSON válido: ${err.message}`\n    }\n  }];\n}\n\n// 3. Validar estructura y valores permitidos\nif (!parsed || typeof parsed !== 'object') {\n  return [{\n    json: {\n      isValidOutput: false,\n      ok: false,\n      data: null,\n      error: 'La respuesta de la IA no contiene un objeto de recomendaciones.'\n    }\n  }];\n}\n\nconst prioridadSugerida = String(parsed.prioridadSugerida || parsed.prioridad_sugerida || parsed.prioridad || '').toLowerCase().trim();\nconst areaSugerida = String(parsed.areaSugerida || parsed.area_sugerida || parsed.area || '').trim();\nconst respuestaInicial = String(parsed.respuestaInicial || parsed.borrador_respuesta || parsed.respuesta || '').trim();\nconst justificacion = String(parsed.justificacion || parsed.motivo || '').trim();\n\nif (!VALID_PRIORITIES.includes(prioridadSugerida)) {\n  return [{\n    json: {\n      isValidOutput: false,\n      ok: false,\n      data: null,\n      error: `La prioridad sugerida '${prioridadSugerida}' no es admisible en el sistema. Valores permitidos: alta, media, baja.`\n    }\n  }];\n}\n\nif (!VALID_AREAS.includes(areaSugerida)) {\n  return [{\n    json: {\n      isValidOutput: false,\n      ok: false,\n      data: null,\n      error: `El área sugerida '${areaSugerida}' no existe en el sistema. Áreas permitidas: ${VALID_AREAS.join(', ')}.`\n    }\n  }];\n}\n\nif (!respuestaInicial || respuestaInicial.length < 5) {\n  return [{\n    json: {\n      isValidOutput: false,\n      ok: false,\n      data: null,\n      error: 'El borrador de respuesta inicial generado está vacío o es insuficiente.'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    isValidOutput: true,\n    ok: true,\n    data: {\n      prioridadSugerida,\n      areaSugerida,\n      respuestaInicial,\n      justificacion: justificacion || 'Recomendación generada mediante análisis automático de contexto.',\n      requiereRevisionHumana: true\n    },\n    error: null\n  }\n}];"
+      },
+      "id": "validate-output-node",
+      "name": "Validar y Normalizar Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-is-valid-output",
+              "leftValue": "={{ $json.isValidOutput }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-output-valid-node",
+      "name": "IF Salida Válida",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1380, 160]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-200-node",
+      "name": "Respond 200 - Éxito",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1640, 80]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "respond-500-node",
+      "name": "Respond 500 - Error IA",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1640, 260]
     }
   ],
   "connections": {
@@ -34,7 +192,116 @@
       "main": [
         [
           {
+            "node": "Normalizar y Validar Entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar y Validar Entrada": {
+      "main": [
+        [
+          {
+            "node": "IF Datos Válidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Datos Válidos": {
+      "main": [
+        [
+          {
             "node": "AI Agent (DeepSeek)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Formatear Error 400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Error 400": {
+      "main": [
+        [
+          {
+            "node": "Respond 400 - Entrada Inválida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Model (OpenAI Compatible)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent (DeepSeek)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent (DeepSeek)": {
+      "main": [
+        [
+          {
+            "node": "Validar y Normalizar Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Formatear Error Modelo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Error Modelo": {
+      "main": [
+        [
+          {
+            "node": "Respond 500 - Error IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar y Normalizar Resultado": {
+      "main": [
+        [
+          {
+            "node": "IF Salida Válida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Salida Válida": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 - Éxito",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 500 - Error IA",
             "type": "main",
             "index": 0
           }
