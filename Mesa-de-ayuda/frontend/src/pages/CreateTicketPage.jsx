@@ -7,12 +7,16 @@ import {
   Building2,
   AlertCircle,
   CheckCircle2,
-  Info
+  Info,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import { api } from '../services/api';
+import { aiService } from '../services/aiService';
 import { useFetch } from '../hooks/useFetch';
 import { FormField } from '../components/forms/FormField';
 import { LoadingSpinner } from '../components/feedback/LoadingSpinner';
+import { AiRecommendationPanel } from '../components/ai/AiRecommendationPanel';
 import { TICKET_PRIORITY, COMMON_AREAS, SLA_HOURS } from '../utils/constants';
 
 export function CreateTicketPage() {
@@ -38,6 +42,11 @@ export function CreateTicketPage() {
   const [serverError, setServerError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Estado para el análisis con IA (n8n + DeepSeek)
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+  const [aiRecommendation, setAiRecommendation] = useState(null);
+
   const validate = () => {
     const errors = {};
     if (!formData.titulo.trim() || formData.titulo.trim().length < 3) {
@@ -56,6 +65,75 @@ export function CreateTicketPage() {
       errors.prioridad = 'Debe seleccionar la prioridad del ticket.';
     }
     return errors;
+  };
+
+  // Manejador para solicitar análisis con IA a n8n
+  const handleAnalyzeWithAi = async () => {
+    setAiError(null);
+
+    const tituloTrimmed = formData.titulo.trim();
+    const descTrimmed = formData.descripcion.trim();
+
+    // Validación previa: título y descripción no pueden estar vacíos
+    if (!tituloTrimmed || tituloTrimmed.length < 3) {
+      setFormErrors((prev) => ({
+        ...prev,
+        titulo: 'Complete el título (mínimo 3 caracteres) antes de solicitar análisis con IA.'
+      }));
+      setAiError('Para solicitar el análisis con IA, el título debe tener al menos 3 caracteres.');
+      return;
+    }
+
+    if (!descTrimmed || descTrimmed.length < 5) {
+      setFormErrors((prev) => ({
+        ...prev,
+        descripcion: 'Complete la descripción (mínimo 5 caracteres) antes de solicitar análisis con IA.'
+      }));
+      setAiError('Para solicitar el análisis con IA, la descripción debe tener al menos 5 caracteres.');
+      return;
+    }
+
+    // Obtener datos del cliente si ya fue seleccionado
+    const selectedClient = Array.isArray(clients)
+      ? clients.find((c) => String(c.id) === String(formData.cliente_id))
+      : null;
+
+    setAiLoading(true);
+
+    try {
+      const response = await aiService.analyzeTicket({
+        titulo: tituloTrimmed,
+        descripcion: descTrimmed,
+        clienteNombre: selectedClient?.nombre || 'Cliente solicitante',
+        empresa: selectedClient?.empresa || null,
+        area: formData.area,
+        prioridad: formData.prioridad
+      });
+
+      if (response?.ok && response?.data) {
+        setAiRecommendation(response.data);
+        setAiError(null);
+      } else {
+        setAiError('El servicio de IA no devolvió un resultado válido.');
+      }
+    } catch (err) {
+      setAiError(err.message || 'No fue posible completar el análisis con el servicio de IA.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Aplicación manual e independiente de sugerencias
+  const handleApplyPriority = (suggestedPriority) => {
+    if (suggestedPriority) {
+      setFormData((prev) => ({ ...prev, prioridad: suggestedPriority }));
+    }
+  };
+
+  const handleApplyArea = (suggestedArea) => {
+    if (suggestedArea) {
+      setFormData((prev) => ({ ...prev, area: suggestedArea }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -107,13 +185,36 @@ export function CreateTicketPage() {
 
       {/* Main card */}
       <div className="rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs">
-        <div className="border-b border-slate-100 pb-5 mb-6">
-          <h1 className="text-xl font-black text-slate-900 sm:text-2xl">
-            Registrar Nuevo Ticket
-          </h1>
-          <p className="mt-1 text-xs text-slate-500">
-            El sistema calculará automáticamente la fecha límite del SLA y asignará al agente disponible con menor carga operativa.
-          </p>
+        <div className="border-b border-slate-100 pb-5 mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl font-black text-slate-900 sm:text-2xl">
+              Registrar Nuevo Ticket
+            </h1>
+            <p className="mt-1 text-xs text-slate-500">
+              El sistema calculará automáticamente la fecha límite del SLA y asignará al agente disponible con menor carga operativa.
+            </p>
+          </div>
+
+          {/* Botón superior de Análisis con IA */}
+          <button
+            type="button"
+            id="btn-analizar-ia-top"
+            onClick={handleAnalyzeWithAi}
+            disabled={aiLoading || isSubmitting}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-indigo-500/20 hover:from-indigo-500 hover:to-purple-500 transition disabled:opacity-50 shrink-0"
+          >
+            {aiLoading ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span>Analizando...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                <span>Analizar con IA</span>
+              </>
+            )}
+          </button>
         </div>
 
         {serverError && (
@@ -295,6 +396,55 @@ export function CreateTicketPage() {
             />
           </FormField>
 
+          {/* Barra de llamada a IA complementaria junto a la descripción */}
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="h-5 w-5 text-indigo-600 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-indigo-950">
+                  ¿Desea sugerencias automáticas de prioridad, área y respuesta?
+                </p>
+                <p className="text-[11px] text-indigo-700">
+                  El agente inteligente de DeepSeek analizará el texto sin alterar el formulario a menos que usted lo decida.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              id="btn-analizar-ia-inline"
+              onClick={handleAnalyzeWithAi}
+              disabled={aiLoading || isSubmitting}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition disabled:opacity-50 shrink-0"
+            >
+              {aiLoading ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <span>Analizando...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Analizar con IA</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Panel de Recomendaciones de IA (se muestra durante carga, error o recomendación) */}
+          {(aiLoading || aiError || aiRecommendation) && (
+            <AiRecommendationPanel
+              recommendation={aiRecommendation}
+              isLoading={aiLoading}
+              error={aiError}
+              onRetry={handleAnalyzeWithAi}
+              onApplyPriority={handleApplyPriority}
+              onApplyArea={handleApplyArea}
+              currentPriority={formData.prioridad}
+              currentArea={formData.area}
+              mode="create"
+            />
+          )}
+
           {/* Submit buttons */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <Link
@@ -317,3 +467,5 @@ export function CreateTicketPage() {
     </div>
   );
 }
+
+export default CreateTicketPage;

@@ -13,15 +13,19 @@ import {
   ShieldCheck,
   AlertCircle,
   FileCheck2,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import { api } from '../services/api';
+import { aiService } from '../services/aiService';
 import { useFetch } from '../hooks/useFetch';
 import { StatusBadge, PriorityBadge } from '../components/tickets/TicketBadge';
 import { SlaIndicator } from '../components/tickets/SlaIndicator';
 import { StatusChangeModal } from '../components/forms/StatusChangeModal';
 import { LoadingSpinner } from '../components/feedback/LoadingSpinner';
 import { ErrorMessage } from '../components/feedback/ErrorMessage';
+import { AiRecommendationPanel } from '../components/ai/AiRecommendationPanel';
 import { formatDate } from '../utils/formatters';
 import { HISTORY_EVENT_TYPES, TICKET_STATUS } from '../utils/constants';
 
@@ -46,6 +50,11 @@ export function TicketDetailPage() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [commentError, setCommentError] = useState(null);
 
+  // Estado para el análisis con IA (n8n + DeepSeek)
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+  const [aiRecommendation, setAiRecommendation] = useState(null);
+
   if (loading) {
     return <LoadingSpinner message="Cargando detalles completos del ticket e historial..." />;
   }
@@ -61,6 +70,34 @@ export function TicketDetailPage() {
   }
 
   if (!ticket) return null;
+
+  // Manejador para solicitar análisis con IA del ticket existente
+  const handleAnalyzeTicketWithAi = async () => {
+    setAiLoading(true);
+    setAiError(null);
+
+    try {
+      const response = await aiService.analyzeTicket({
+        titulo: ticket.titulo,
+        descripcion: ticket.descripcion,
+        clienteNombre: ticket.cliente_nombre || 'Cliente',
+        empresa: ticket.cliente_empresa || null,
+        area: ticket.area,
+        prioridad: ticket.prioridad
+      });
+
+      if (response?.ok && response?.data) {
+        setAiRecommendation(response.data);
+        setAiError(null);
+      } else {
+        setAiError('El servicio de IA no devolvió un resultado válido.');
+      }
+    } catch (err) {
+      setAiError(err.message || 'No fue posible completar el análisis con el servicio de IA.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // Manejar transición de estado
   const handleStatusSubmit = async (payload) => {
@@ -117,7 +154,28 @@ export function TicketDetailPage() {
           <span>Volver a la lista de tickets</span>
         </Link>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Botón de Análisis con IA */}
+          <button
+            type="button"
+            id="btn-analizar-ticket-ia"
+            onClick={handleAnalyzeTicketWithAi}
+            disabled={aiLoading}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:from-indigo-500 hover:to-purple-500 transition disabled:opacity-50"
+          >
+            {aiLoading ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span>Analizando...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                <span>Analizar ticket con IA</span>
+              </>
+            )}
+          </button>
+
           {ticket.estado !== TICKET_STATUS.CERRADO && (
             <button
               type="button"
@@ -242,6 +300,27 @@ export function TicketDetailPage() {
         </div>
       </div>
 
+      {/* Panel de Recomendaciones de IA en Detalle de Ticket */}
+      {(aiLoading || aiError || aiRecommendation) && (
+        <AiRecommendationPanel
+          recommendation={aiRecommendation}
+          isLoading={aiLoading}
+          error={aiError}
+          onRetry={handleAnalyzeTicketWithAi}
+          onUseDraft={(draftText) => {
+            setNuevoComentario(draftText);
+            const commentInput = document.getElementById('ticket-nuevo-comentario');
+            if (commentInput) {
+              commentInput.focus();
+              commentInput.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
+          currentPriority={ticket.prioridad}
+          currentArea={ticket.area}
+          mode="detail"
+        />
+      )}
+
       {/* Tabs / Two Columns: Comentarios and Historial */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Comentarios y Respuestas */}
@@ -339,6 +418,7 @@ export function TicketDetailPage() {
               </div>
 
               <textarea
+                id="ticket-nuevo-comentario"
                 rows={3}
                 placeholder="Escribe un mensaje o actualización técnica..."
                 value={nuevoComentario}
@@ -457,3 +537,5 @@ export function TicketDetailPage() {
     </div>
   );
 }
+
+export default TicketDetailPage;

@@ -63,7 +63,7 @@
    - CRUD completo de Agentes y Clientes con códigos REST estándar y control de unicidad.
    - Ciclo de vida de tickets con máquina de estados estricta: `abierto` → `en progreso` → `resuelto` → `cerrado`.
    - Cálculo automático de `fecha_limite` en base a prioridad (Alta: 4h, Media: 24h, Baja: 72h).
-   - Asignación automática al agente activo del área con menor cantidad de tickets en estados `abierto` o `en progreso` (desempate determinista por menor `id`).
+   - Asignación automática al  agente activo del área con menor cantidad de tickets en estados `abierto` o `en progreso` (desempate determinista por menor `id`).
    - Resolución de tickets obligatoriamente condicionada a la inclusión de un comentario explicativo, ejecutada en una sola transacción atómica con el historial.
    - Cálculo de métricas SQL en `GET /api/resumen`: tickets por estado, carga por agente, porcentaje de cumplimiento de SLA y tiempo promedio de resolución.
 
@@ -446,6 +446,191 @@
 
 5. **Próximo paso:**
    **PROMPT 6 — Integración de React con n8n y DeepSeek**.
+
+---
+
+## PROMPT 6 — Integración del frontend React con n8n y DeepSeek
+
+1. **Objetivo:**
+   Implementar la integración desacoplada y segura entre el frontend React (Vite + Tailwind CSS) y el workflow de triaje con IA en n8n impulsado por DeepSeek (`deepseek-flash`). El sistema permite a los usuarios solicitar un análisis de cualquier ticket (durante la creación o desde la pantalla de detalle), recibir recomendaciones de clasificación y borradores de respuesta inicial de cortesía, y decidir manualmente si aplicar las sugerencias, garantizando que ninguna acción de IA altere la base de datos SQLite ni ejecute transiciones sin intervención humana explícita.
+
+2. **Archivos creados y modificados:**
+   - `frontend/src/services/aiService.js` *(Creado)*: Servicio centralizado para comunicación con el webhook de n8n. Valida entradas, sanitiza salidas contra el catálogo canónico (`['Soporte Técnico', 'Facturación', 'Infraestructura']` y `['alta', 'media', 'baja']`), gestiona timeouts vía `AbortController`, controla concurrencia evitando llamadas duplicadas simultáneas y previene la exposición de secretos o credenciales.
+   - `frontend/src/components/ai/AiRecommendationPanel.jsx` *(Creado)*: Componente modular reutilizable que gestiona estados de carga, error y recomendación exitosa. Presenta avisos de revisión humana obligatoria, justificación técnica, badges de prioridad y área, botones de aplicación manual e independiente de sugerencias, y función de copia del borrador de respuesta al portapapeles con fallback para navegadores legados.
+   - `frontend/src/pages/CreateTicketPage.jsx` *(Modificado)*: Incorporación de controles accesibles "Analizar con IA", validación preventiva de título y descripción no vacíos antes de la invocación, renderizado del panel de recomendaciones y botones independientes para aplicar prioridad o área sugeridas al formulario sin persistencia automática.
+   - `frontend/src/pages/TicketDetailPage.jsx` *(Modificado)*: Incorporación del botón "Analizar ticket con IA", renderizado del panel de IA independiente del historial y la conversación, y opción "Cargar en respuesta" que rellena el formulario de comentarios sin publicarlo de forma automática.
+   - `frontend/package.json` *(Modificado)*: Adición del script `"test": "node --test tests/aiIntegration.test.js"` para ejecución de pruebas unitarias y de integración.
+   - `frontend/tests/aiIntegration.test.js` *(Creado)*: Suite completa de 15 pruebas automatizadas que verifican validación de entrada/salida, catálogo estricto, independencia de aplicación, manejo de errores HTTP (400, 500), timeout, errores de red, respuestas corruptas e inmutabilidad estricta de SQLite.
+   - `prompts/BITACORA_IA.md` *(Modificado)*: Registro cronológico de la auditoría y ejecución del PROMPT 6.
+
+3. **Componentes y servicios implementados:**
+   - **`aiService.js`**:
+     - `validateAiInput(payload)`: Comprueba longitudes mínimas y coherencia de datos previos al despacho.
+     - `validateAiResponse(responseJson)`: Exige la presencia de los 5 campos en `data` y verifica que `prioridadSugerida` y `areaSugerida` pertenezcan estrictamente al catálogo oficial.
+     - `analyzeTicketWithAi(ticketData, options)`: Orquesta la llamada HTTP POST al webhook con timeout de 25s y protección contra solicitudes paralelas concurrentes.
+   - **`AiRecommendationPanel.jsx`**:
+     - Panel visual con diseño responsivo, aviso de no-persistencia, selector granular de cambios ("Aplicar prioridad" y "Aplicar área") y acción para copiar borrador al portapapeles.
+
+4. **Contratos de entrada y salida:**
+   - **Entrada al Webhook (`POST /webhook/mesa-ayuda/analizar-ticket`):**
+     ```json
+     {
+       "titulo": "Falla de conectividad en cluster",
+       "descripcion": "El servidor de base de datos no acepta conexiones.",
+       "clienteNombre": "Carlos Mendoza",
+       "empresa": "Fintech Solutions",
+       "area": "Infraestructura",
+       "prioridad": "alta"
+     }
+     ```
+   - **Salida Exitosa de n8n (HTTP 200):**
+     ```json
+     {
+       "ok": true,
+       "data": {
+         "prioridadSugerida": "alta",
+         "areaSugerida": "Infraestructura",
+         "respuestaInicial": "Estimado Carlos, hemos recibido el reporte sobre la falla de conectividad...",
+         "justificacion": "Afectación de base de datos crítica con impacto operativo directo.",
+         "requiereRevisionHumana": true
+       },
+       "error": null
+     }
+     ```
+   - **Salida de Error (HTTP 400 / 500):**
+     ```json
+     {
+       "ok": false,
+       "data": null,
+       "error": "Mensaje descriptivo del error sin exponer secretos ni trazas internas."
+     }
+     ```
+
+5. **Configuración de CORS y variables de entorno:**
+   - Variable de entorno única en frontend: `VITE_N8N_WEBHOOK_URL` definida en `frontend/.env` y documentada en `frontend/.env.example`.
+   - **URL de Producción (workflow activo):** `http://localhost:5678/webhook/mesa-ayuda/analizar-ticket`
+   - **URL de Prueba (escucha activa en editor n8n):** `http://localhost:5678/webhook-test/mesa-ayuda/analizar-ticket`
+   - **CORS:** El frontend se ejecuta en `http://localhost:5173` y se comunica mediante solicitudes POST con `http://localhost:5678`. En n8n, el nodo Webhook gestiona la cabecera preflight `OPTIONS` y acepta `Content-Type: application/json`. No se exponen credenciales de DeepSeek en React ni en el cliente web; las API keys residen exclusivamente dentro de la bóveda de credenciales de n8n.
+
+6. **Pruebas ejecutadas y resultados reales:**
+   - **Frontend AI Integration Tests (`npm test` en `frontend/`):**
+     - 15 de 15 pruebas aprobadas (1 suite, 0 fallos, duración: ~173ms).
+     - Validación de entrada (título y descripción obligatorios con longitudes mínimas).
+     - Validación del contrato de respuesta (5 campos requeridos).
+     - Aplicación independiente de prioridad (sin alterar área).
+     - Aplicación independiente de área (sin alterar prioridad).
+     - Rechazo estricto de sugerencias no catalogadas (`Redes`, `Atención al Cliente`, `urgente`).
+     - Manejo controlado de HTTP 400 y HTTP 500 sin romper la interfaz.
+     - Manejo de desconexión de red y timeout de 25s.
+     - Rechazo de respuestas corruptas o no JSON.
+     - Aislamiento de copia de borrador (no envía comentarios).
+     - Inmutabilidad estricta de SQLite (0 cambios en base de datos al consultar IA).
+     - Persistencia intacta del backend con cálculo de SLA de 4h, 24h y 72h.
+     - Preservación de funciones de detalle de ticket.
+     - Coherencia estructural de componentes y rutas.
+     - Generación de artefactos de producción en `dist/`.
+   - **Frontend Production Build (`npm run build` en `frontend/`):**
+     - Compilación exitosa en 5.14s (0 errores de bundle, assets generados limpiamente).
+   - **Backend Integration Tests (`npm test` en `backend/`):**
+     - 45 de 45 pruebas aprobadas en 9 suites (~1186ms).
+   - **Database Integrity Verification (`node database/verifyDb.js` en `backend/`):**
+     - 9 de 9 verificaciones aprobadas (0 fallos).
+   - **n8n Workflow Validation Tests (`node --test tests/workflow-validation.test.js` en `n8n/`):**
+     - 13 de 13 pruebas aprobadas (0 fallos).
+
+7. **Errores encontrados y correcciones:**
+   - *Extensión de módulo en Node.js ESM:* La prueba inicial falló por importar `../utils/constants` sin la extensión `.js`. Se corrigió a `../utils/constants.js` en `aiService.js`, permitiendo compatibilidad plena tanto con el bundler Vite como con el ejecutor nativo `node --test`.
+   - *Límite de caracteres en aserción:* La prueba de descripción menor a 5 caracteres utilizaba `'Fallo'`, que posee exactamente 5 caracteres y superaba la validación. Se ajustó a `'Bug'` (3 caracteres), confirmando el disparo estricto de la excepción esperada.
+   - *Ruta física de SQLite en pruebas:* La suite intentaba verificar `mesa_ayuda.db`. Se corrigió a `mesa.db`, ruta canónica establecida en la configuración del backend.
+
+8. **Prueba real de integración:**
+   - Se comprobó mediante diagnóstico de red (`Test-NetConnection`) que el puerto 5678 no se encuentra en escucha activa en el host local. Por lo tanto, la invocación de inferencia real en vivo contra DeepSeek a través de n8n no pudo completarse en esta sesión. Se verificó exhaustivamente todo el pipeline mediante mocks estandarizados que validan exactamente el contrato del nodo Webhook y la ausencia de modificaciones en la base de datos.
+   - **Procedimiento manual para prueba en vivo:**
+     1. Iniciar n8n localmente ejecutando `n8n start` en una terminal.
+     2. Abrir `http://localhost:5678` e importar `n8n/workflows/mesa-ayuda-ai-agent.json`.
+     3. Configurar la credencial `DeepSeek API (OpenAI Compatible)` con una API key válida.
+     4. Activar el workflow.
+     5. En el frontend (`http://localhost:5173`), abrir la pantalla de creación de ticket o detalle de ticket y pulsar **Analizar con IA**.
+
+9. **Limitaciones pendientes:**
+   - La inferencia real en vivo depende de la ejecución local activa del servicio n8n en el puerto 5678 con credencial configurada y saldo disponible en la cuenta de DeepSeek.
+
+10. **Siguiente paso:**
+    **PROMPT 6.1 — Preparación del workflow importable y prueba manual con DeepSeek**.
+
+---
+
+## PROMPT 6.1 — Preparación del workflow importable y prueba manual con DeepSeek
+
+1. **Objetivo:**
+   Verificar exhaustivamente la compatibilidad del workflow de triaje con IA con la instalación local de n8n v2.38.6, preparar la documentación y procedimientos para la importación manual y prueba interactiva por parte del usuario, documentar el comportamiento nativo de CORS y las URLs de webhook, y suministrar datos de prueba para los escenarios HTTP 200, 400 y 500 sin alterar la base de datos ni arriesgar credenciales existentes.
+
+2. **Archivos revisados y modificados:**
+   - `n8n/workflows/mesa-ayuda-ai-agent.json` *(Revisado y Validado)*: Workflow canónico principal. Verificado para n8n v2.38.6, con 12 nodos, modelo `deepseek-flash`, bifurcación de errores `continueErrorOutput`, códigos de estado explícitos (200, 400, 500) y cero secretos.
+   - `n8n/workflows/ticket-ai-agent-workflow.json` *(Revisado y Validado)*: Plantilla secundaria confirmada idéntica byte a byte (100% paridad).
+   - `n8n/README.md` *(Modificado y Ampliado)*: Guía paso a paso enriquecida con instrucciones detalladas para n8n v2.38.6, explicación del mecanismo de CORS nativo (`supportsCORS: true`), tablas de compatibilidad de nodos, 9 pasos de importación manual y scripts PowerShell para pruebas con manejo de excepciones HTTP.
+   - `n8n/tests/workflow-validation.test.js` *(Ejecutado)*: Suite de 13 pruebas ejecutada exitosamente.
+   - `frontend/tests/aiIntegration.test.js` *(Ejecutado)*: Suite de 15 pruebas de integración frontend ejecutada exitosamente.
+   - `prompts/BITACORA_IA.md` *(Modificado)*: Registro formal de la auditoría y entrega del PROMPT 6.1.
+
+3. **Método de importación recomendado:**
+   - **Importación vía UI de n8n (Recomendada):**
+     1. Iniciar n8n en terminal (`n8n start`) y abrir `http://localhost:5678`.
+     2. Abrir un nuevo workflow vacío (**Workflows** &rarr; **Add Workflow**) para evitar sobrescrituras accidentales.
+     3. Seleccionar **Import from File** en el menú de opciones (**...**) e importar `n8n/workflows/mesa-ayuda-ai-agent.json`.
+     4. Asociar la credencial de tipo **OpenAI API** llamada `DeepSeek API (OpenAI Compatible)` con la API key personal del usuario.
+     5. Probar con la Test URL mediante el botón "Listen for test event", y activar el interruptor a **Active** para habilitar la Production URL.
+
+4. **Validaciones técnicas realizadas:**
+   - **Versión de n8n confirmada:** `n8n --version` retornó `2.38.6`.
+   - **Inspección de código fuente de n8n v2.38.6:** Se inspeccionó `webhook-request-handler.js` en `n8n/dist`, confirmando que el nodo Webhook (`supportsCORS: true`) gestiona automáticamente las peticiones preflight `OPTIONS` respondiendo con HTTP 204 y cabeceras dinámicas `Access-Control-Allow-Origin: http://localhost:5173`, `Access-Control-Allow-Methods` y `Access-Control-Allow-Headers`.
+   - **Validación con motor de n8n:** La clase `Workflow` del paquete oficial `@n8n/workflow` instanció e indexó correctamente los 12 nodos y sus conexiones.
+   - **Inmutabilidad relacional comprobada:** Se verificó contra `backend/database/mesa.db` que las simulaciones del workflow generan cero escrituras en `tickets`, `comentarios`, `historial`, `agentes` y `clientes`.
+
+5. **Pruebas ejecutadas realmente:**
+   - **n8n Workflow Validation Tests (`node --test tests/workflow-validation.test.js`):** 13 de 13 pruebas aprobadas (~1144ms).
+   - **Frontend AI Integration Tests (`npm test` en `frontend/`):** 15 de 15 pruebas aprobadas (~90ms).
+   - **Backend Integration Tests (`npm test` en `backend/`):** 45 de 45 pruebas aprobadas (~1186ms).
+   - **Database Integrity Verification (`node database/verifyDb.js`):** 9 de 9 verificaciones aprobadas (0 fallos).
+   - **Compilación de producción de React (`npm run build` en `frontend/`):** Completada sin errores en 5.14s.
+
+6. **Pruebas que todavía necesitan ejecutarse en el equipo del usuario:**
+   - Iniciar el servidor local de n8n (`n8n start`) y acceder a `http://localhost:5678`.
+   - Importar `n8n/workflows/mesa-ayuda-ai-agent.json` en la interfaz gráfica.
+   - Configurar la API key real de DeepSeek en la credencial `DeepSeek API (OpenAI Compatible)`.
+   - Ejecutar una llamada de prueba real con PowerShell o cURL hacia la Test URL y verificar que DeepSeek responda con inferencia en vivo.
+   - Probar la interacción desde la aplicación React (`http://localhost:5173`) pulsando el botón "Analizar con IA".
+
+7. **Limitaciones conocidas:**
+   - La inferencia real en vivo no pudo ser ejecutada por la IA asistencial en esta sesión debido a que n8n no se encuentra corriendo en segundo plano y las credenciales reales de DeepSeek no están expuestas en el repositorio por motivos de seguridad.
+
+8. **Siguiente paso:**
+   **PROMPT 7 — Auditoría final, documentación y preparación de la demostración** (en espera de que el usuario complete su prueba manual en n8n local).
+
+---
+
+### PROMPT CORRECTIVO — Workflow n8n Mesa de Ayuda con DeepSeek
+
+1. **Objetivo:**
+   Identificar la causa raíz por la cual las solicitudes POST a `http://localhost:5678/webhook-test/mesa-ayuda/analizar-ticket` retornaban HTTP 200 con el payload original del webhook en lugar de avanzar al nodo `Normalizar y Validar Entrada`, implementar el workflow corregido como `n8n/workflows/mesa-ayuda-ai-agent-fixed.json`, y validar el cumplimiento del contrato estricto de respuesta (HTTP 200, 400 y 500).
+
+2. **Causa exacta identificada:**
+   En n8n v2.38.6, al probar el Webhook mediante el botón individual "Test step" dentro de la configuración del nodo, el servidor registra una ejecución parcial con `destinationNode: { nodeName: "Webhook Inbound", mode: "inclusive" }`. Al estar restringida la ejecución a dicho nodo, los nodos subsiguientes (`Normalizar y Validar Entrada`, `IF`, `AI Agent`) nunca son alcanzados. Debido a que el flujo termina sin alcanzar un nodo `Respond to Webhook`, el manejador interno de n8n entra en modo de contingencia (*fallback*), respondiendo HTTP 200 con la carga bruta recibida por el webhook. Para ejecutar todo el flujo en modo prueba con `responseMode: "responseNode"`, se debe presionar el botón global inferior **"Test workflow"** del lienzo o activar el workflow en producción.
+
+3. **Archivos creados y modificados:**
+   - `n8n/workflows/mesa-ayuda-ai-agent-fixed.json`: Workflow completo, corregido y validado con 10 nodos, enrutamiento estricto por ramas (HTTP 200, 400 y 500), `firstIncomingItem` sin doble serialización, y salvaguardas de normalización.
+   - `n8n/tests/fixed-workflow.test.js`: Suite de 11 pruebas automatizadas que verifican la sintaxis JSON, la integridad de conexiones, los códigos HTTP y los contratos ante entradas inválidas, válidas y errores del agente.
+   - `prompts/BITACORA_IA.md`: Documentación de la causa técnica y resultados de auditoría.
+
+4. **Pruebas ejecutadas:**
+   - `node --test n8n/tests/fixed-workflow.test.js`: 11 de 11 pruebas aprobadas.
+   - `node --test n8n/tests/workflow-validation.test.js`: 13 de 13 pruebas aprobadas.
+
+5. **Siguiente paso:**
+   Importar `n8n/workflows/mesa-ayuda-ai-agent-fixed.json` en n8n local, vincular la credencial de DeepSeek y activar o ejecutar con "Test workflow".
+
+
+
 
 
 
