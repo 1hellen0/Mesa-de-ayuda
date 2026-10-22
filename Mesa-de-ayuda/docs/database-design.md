@@ -43,7 +43,7 @@ erDiagram
         string prioridad "baja | media | alta"
         datetime fecha_limite "SLA: 4h / 24h / 72h"
         datetime fecha_resolucion "nullable"
-        datetime created_at
+        datetime fecha_creacion
         datetime updated_at
     }
 
@@ -77,9 +77,9 @@ erDiagram
 2. **Prioridades del Ticket (`prioridad`):**
    `CHECK (prioridad IN ('baja', 'media', 'alta'))`
 3. **Plazos de SLA en `fecha_limite`:**
-   - Alta: 4 horas (`created_at + 4 hours`)
-   - Media: 24 horas (`created_at + 24 hours`)
-   - Baja: 72 horas (`created_at + 72 hours`)
+   - Alta: 4 horas (`fecha_creacion + 4 hours`)
+   - Media: 24 horas (`fecha_creacion + 24 hours`)
+   - Baja: 72 horas (`fecha_creacion + 72 hours`)
 4. **Comentarios de Resolución (`es_resolucion`):**
    `CHECK (es_resolucion IN (0, 1))`
 5. **Políticas de Integridad Referencial y Borrado:**

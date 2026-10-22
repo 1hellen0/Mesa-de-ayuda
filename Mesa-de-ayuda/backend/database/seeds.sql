@@ -27,7 +27,7 @@ INSERT INTO clientes (id, nombre, email, telefono, empresa) VALUES
 -- SLA: Alta = 4 horas, Media = 24 horas, Baja = 72 horas
 -- Incluye casos normales y tickets vencidos para probar métricas e indicadores.
 -- ----------------------------------------------------------------------------
-INSERT INTO tickets (id, titulo, descripcion, cliente_id, agente_id, area, estado, prioridad, fecha_limite, fecha_resolucion, created_at, updated_at) VALUES
+INSERT INTO tickets (id, titulo, descripcion, cliente_id, agente_id, area, estado, prioridad, fecha_limite, fecha_resolucion, fecha_creacion, updated_at) VALUES
 -- Ticket 1: Abierto, prioridad alta (vigente)
 (1, 'Error en pasarela de pagos al checkout', 'Los clientes no pueden procesar transacciones con tarjeta visa.', 1, 1, 'Soporte Técnico', 'abierto', 'alta', datetime('now', '+3 hours'), NULL, datetime('now', '-1 hour'), datetime('now', '-1 hour')),
 

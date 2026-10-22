@@ -92,4 +92,59 @@
     **Completado.** El backend real cumple con la totalidad de los requisitos del primer día, cuenta con servidor HTTP Express en funcionamiento, persistencia en SQLite real, 29 pruebas automatizadas aprobadas y colección de Postman sincronizada.
 
 11. **Siguiente paso:**
-    Iniciar el **Prompt 3**: Implementación del Frontend SPA con React, Vite, Tailwind CSS y consumo de la API REST del backend.
+    Iniciar el **Prompt 3**: Auditoría de consistencia, cobertura de SLA y verificación del checkpoint.
+
+---
+
+### PROMPT 3 — Auditoría y checkpoint del backend (Cobertura del SLA y consistencia de la colección)
+
+1. **Objetivo de la auditoría:**
+   Verificar la consistencia del modelo de datos frente a `schema.sql` (auditar `created_at` vs `fecha_creacion`), comprobar la cobertura estricta de las tres duraciones de SLA (4h, 24h, 72h) en pruebas y Postman, auditar el conteo real de solicitudes de la colección de Postman, validar los códigos HTTP 400, 404 y 409, y certificar que las transacciones atómicas reviertan los cambios ante cualquier fallo sin dejar datos corruptos ni huérfanos.
+
+2. **Archivos modificados:**
+   - `README.md`: Se corrigieron las menciones a `fecha_creacion` por el nombre de columna real en base de datos: `created_at`.
+   - `backend/src/repositories/summaryRepository.js`: Se corrigieron los comentarios y el texto descriptivo de la fórmula para reflejar `created_at`.
+   - `docs/postman/mesa-de-ayuda.postman_collection.json`: Se agregó la solicitud faltante para prioridad baja (`POST /api/tickets - Crear Ticket Prioridad Baja (SLA 72h)`), junto con casos de prueba para 400 y 404 en tickets. Conteo real auditado: **36 solicitudes HTTP**.
+   - `backend/tests/integration.test.js`: Se expandió la suite de pruebas agregando la sección 8 con validaciones específicas de 400 (JSON mal formado, tipos inválidos), 404 (recursos inexistentes), 409 (conflictos de negocio y de claves foráneas) y comprobación de reversión transaccional en base de datos (conteo verificado en 0 tras rollback). Total de pruebas: 37.
+
+3. **Código o funcionalidades verificadas:**
+   - Cobertura de SLA completa: Alta (4 horas), Media (24 horas) y Baja (72 horas) calculadas y comparadas mediante diferencias de tiempo basadas en fechas con tolerancias razonables (< 0.1h).
+   - Atomicidad transaccional: Verificación de que los fallos en auto-asignación o resolución no dejan tickets, comentarios ni entradas de historial huérfanas en la base de datos.
+   - Formato estandarizado de error: Todos los fallos 400, 404 y 409 responden estrictamente con `{ "error": "mensaje comprensible" }`.
+
+4. **Pruebas realizadas:**
+   - `npm run db:init`: Ejecución limpia de DDL y datos iniciales en `database/mesa.db`. Código de salida: 0.
+   - `npm run db:verify`: 9 de 9 pruebas de integridad referencial, restricciones CHECK y transacciones aprobadas. Código de salida: 0.
+   - `npm test`: 37 de 37 pruebas de integración en 8 suites ejecutadas contra el servidor Express y base de datos real. Código de salida: 0 (duración: ~1.1s).
+   - Auditoría programática de Postman: Script Node.js recorrió recursivamente el árbol de `mesa-de-ayuda.postman_collection.json` confirmando **36 solicitudes HTTP reales**.
+
+5. **Errores encontrados y correcciones realizadas:**
+   - *Discrepancia en nombre de columna:* Documentación y comentarios usaban `fecha_creacion`, mientras que `schema.sql` define `created_at`. Se unificó todo a `created_at`.
+   - *Omisión en Postman:* No existía una solicitud explícita para crear ticket con prioridad baja (SLA 72h). Se agregó `POST /api/tickets - Crear Ticket Prioridad Baja (SLA 72h) (201 Created)`.
+   - *Inexactitud en reporte previo:* Se había reportado un estimado de 22 peticiones cuando la colección en realidad tenía 35 (y ahora 36). Se auditó y corrigió el conteo formal a 36 peticiones.
+
+7. **Adenda de Cierre — Nombres del modelo de datos (`tickets.fecha_creacion`):**
+   - **Contexto y requerimiento:** Se revisó la consigna académica original para la entidad `tickets`, la cual especifica textualmente el campo `fecha_creacion` junto a `fecha_limite` y `fecha_resolucion`.
+   - **Decisión adoptada:** Cumplimiento literal y estricto del requisito académico en la tabla `tickets`, sustituyendo `created_at` por `fecha_creacion` (sin duplicar columnas ni crear redundancias innecesarias). Las demás tablas (`agentes`, `clientes`, `comentarios`, `historial`) conservan su columna estándar `created_at`.
+   - **Archivos actualizados:**
+     - `backend/database/schema.sql`: Definición de `tickets` con `fecha_creacion TEXT NOT NULL DEFAULT (datetime('now'))`.
+     - `backend/database/seeds.sql`: Inserciones en `tickets` especificando `fecha_creacion`.
+     - `backend/src/repositories/ticketRepository.js`: Consultas SQL (`SELECT`, `INSERT`), whitelist de ordenamiento con alias compatible (`sortBy: fecha_creacion` por defecto y compatibilidad con `created_at`).
+     - `backend/src/repositories/summaryRepository.js`: Consultas agregadas con `julianday(t.fecha_creacion)` y descripción de fórmula actualizada.
+     - `backend/src/validators/ticketValidator.js`: Whitelist en `queryTicketSchema` soportando `fecha_creacion` y `created_at`.
+     - `backend/tests/integration.test.js`: Pruebas de cálculo de SLA (4h, 24h, 72h) evaluando `ticket.fecha_creacion`.
+     - `docs/database-design.md`: Diagrama ERD y documentación de reglas de DDL actualizados.
+     - `README.md`: Fórmulas de SLA actualizadas para reflejar `fecha_creacion`.
+   - **Pruebas y verificaciones ejecutadas:**
+     - `npm run db:init`: 0 errores, recreación limpia de la base de datos con `fecha_creacion`.
+     - `npm run db:verify`: 9 de 9 pruebas de integridad, CHECK, FK y transacciones aprobadas.
+     - `npm test`: 37 de 37 pruebas de integración aprobadas (8 suites en 1009 ms).
+   - **Estado:** 100% consistente y verificado. Backend estable y listo para la fase de cliente.
+
+8. **Estado final:**
+   **Completado y Verificado.** El modelo de datos, la API REST, la base de datos física y las pruebas son consistentes con la consigna académica.
+
+9. **Siguiente paso:**
+   Proceder con el **PROMPT 4 — Frontend React + Vite + Tailwind CSS**.
+
+

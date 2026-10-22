@@ -62,7 +62,7 @@ export const summaryRepository = {
     const cumplimientoSla = db.prepare(sqlSla).get();
 
     // 4. Tiempo promedio de resolución (en horas)
-    // Fórmula: AVG((fecha_cierre_real - created_at) en horas)
+    // Fórmula: AVG((fecha_cierre_real - fecha_creacion) en horas)
     // Se calcula mediante la diferencia de días julianos multiplicada por 24 horas.
     const sqlTiempoPromedio = `
       WITH TiemposResolucion AS (
@@ -76,7 +76,7 @@ export const summaryRepository = {
                  WHERE h.ticket_id = t.id AND h.tipo_evento = 'cambio_estado' AND h.valor_nuevo = 'resuelto'
                  ORDER BY h.id DESC LIMIT 1)
               )
-            ) - julianday(t.created_at)
+            ) - julianday(t.fecha_creacion)
           ) * 24.0 AS horas_resolucion
         FROM tickets t
         WHERE t.estado IN ('resuelto', 'cerrado')
@@ -118,7 +118,7 @@ export const summaryRepository = {
         horas_maximo: tiempoResolucion.tiempo_maximo_horas !== null
           ? tiempoResolucion.tiempo_maximo_horas
           : 0,
-        formula: 'AVG((fecha_resolucion - created_at) * 24 horas)'
+        formula: 'AVG((fecha_resolucion - fecha_creacion) * 24 horas)'
       },
       carga_por_agente: cargaPorAgente
     };

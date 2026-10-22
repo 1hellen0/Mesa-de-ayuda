@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     prioridad TEXT NOT NULL CHECK (prioridad IN ('baja', 'media', 'alta')),
     fecha_limite TEXT NOT NULL,
     fecha_resolucion TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    fecha_creacion TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE RESTRICT,
     FOREIGN KEY (agente_id) REFERENCES agentes(id) ON DELETE RESTRICT

@@ -45,6 +45,6 @@ export const queryTicketSchema = z.object({
   agente_id: z.coerce.number().int().positive().optional(),
   cliente_id: z.coerce.number().int().positive().optional(),
   q: z.string().trim().optional(),
-  sortBy: z.enum(['created_at', 'fecha_limite', 'prioridad', 'estado', 'id']).optional().default('created_at'),
+  sortBy: z.enum(['fecha_creacion', 'created_at', 'fecha_limite', 'prioridad', 'estado', 'id']).optional().default('fecha_creacion'),
   order: z.enum(['asc', 'desc']).optional().default('desc')
 });

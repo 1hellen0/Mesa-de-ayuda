@@ -264,6 +264,18 @@
           }
         },
         {
+          "name": "POST /api/tickets - Crear Ticket Prioridad Baja (SLA 72h) (201 Created)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Solicitud de manual de usuario y capacitación\",\n  \"descripcion\": \"Requerimiento no urgente de material inductivo para nuevos colaboradores.\",\n  \"cliente_id\": 2,\n  \"area\": \"Soporte Técnico\",\n  \"prioridad\": \"baja\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/tickets", "host": ["{{baseUrl}}"], "path": ["tickets"] }
+          }
+        },
+        {
           "name": "POST /api/tickets - Crear Ticket Sin Agentes Disponibles (409 Conflict)",
           "request": {
             "method": "POST",

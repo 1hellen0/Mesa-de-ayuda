@@ -1,11 +1,11 @@
 import db from '../config/database.js';
 
 export const ticketRepository = {
-  findAll({ estado, prioridad, area, agente_id, cliente_id, q, sortBy = 'created_at', order = 'desc' } = {}) {
+  findAll({ estado, prioridad, area, agente_id, cliente_id, q, sortBy = 'fecha_creacion', order = 'desc' } = {}) {
     let sql = `
       SELECT t.id, t.titulo, t.descripcion, t.cliente_id, t.agente_id, t.area,
              t.estado, t.prioridad, t.fecha_limite, t.fecha_resolucion,
-             t.created_at, t.updated_at,
+             t.fecha_creacion, t.updated_at,
              c.nombre AS cliente_nombre, c.email AS cliente_email, c.empresa AS cliente_empresa,
              a.nombre AS agente_nombre, a.email AS agente_email,
              CASE
@@ -47,13 +47,14 @@ export const ticketRepository = {
 
     // Whitelist para ordenamiento seguro
     const allowedSort = {
-      created_at: 't.created_at',
+      fecha_creacion: 't.fecha_creacion',
+      created_at: 't.fecha_creacion',
       fecha_limite: 't.fecha_limite',
       prioridad: 't.prioridad',
       estado: 't.estado',
       id: 't.id'
     };
-    const sortCol = allowedSort[sortBy] || 't.created_at';
+    const sortCol = allowedSort[sortBy] || 't.fecha_creacion';
     const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     sql += ` ORDER BY ${sortCol} ${sortOrder}, t.id DESC`;
@@ -65,7 +66,7 @@ export const ticketRepository = {
     const sql = `
       SELECT t.id, t.titulo, t.descripcion, t.cliente_id, t.agente_id, t.area,
              t.estado, t.prioridad, t.fecha_limite, t.fecha_resolucion,
-             t.created_at, t.updated_at,
+             t.fecha_creacion, t.updated_at,
              c.nombre AS cliente_nombre, c.email AS cliente_email, c.empresa AS cliente_empresa,
              a.nombre AS agente_nombre, a.email AS agente_email,
              CASE
@@ -82,7 +83,7 @@ export const ticketRepository = {
 
   create({ titulo, descripcion, cliente_id, agente_id = null, area, estado = 'abierto', prioridad, fecha_limite }) {
     const stmt = db.prepare(`
-      INSERT INTO tickets (titulo, descripcion, cliente_id, agente_id, area, estado, prioridad, fecha_limite, created_at, updated_at)
+      INSERT INTO tickets (titulo, descripcion, cliente_id, agente_id, area, estado, prioridad, fecha_limite, fecha_creacion, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
     `);
     const result = stmt.run(titulo, descripcion, cliente_id, agente_id, area, estado, prioridad, fecha_limite);

@@ -23,9 +23,9 @@ El repositorio está organizado como un monorepo desacoplado con dos aplicacione
 1. **Entidades Principales**: `agentes`, `clientes`, `tickets`, `comentarios`, `historial`.
 2. **Estados Permitidos**: `'abierto'`, `'en progreso'`, `'resuelto'`, `'cerrado'`.
 3. **SLA por Prioridad**:
-   - **Alta**: 4 horas (`fecha_limite = created_at + 4h`).
-   - **Media**: 24 horas (`fecha_limite = created_at + 24h`).
-   - **Baja**: 72 horas (`fecha_limite = created_at + 72h`).
+   - **Alta**: 4 horas (`fecha_limite = fecha_creacion + 4h`).
+   - **Media**: 24 horas (`fecha_limite = fecha_creacion + 24h`).
+   - **Baja**: 72 horas (`fecha_limite = fecha_creacion + 72h`).
 4. **Asignación Automática**: Agente activo del área correspondiente con menor número de tickets en estado `'abierto'` o `'en progreso'`.
 5. **Transiciones e Historial**:
    - Todo cambio de estado o agente genera una entrada en la tabla `historial`.

@@ -227,7 +227,7 @@ describe('4. Gestión de Tickets: Creación, SLA y Asignación Automática', () 
     assert.equal(ticket.agente_nombre, 'Sofía Ramos', 'Debe asignarse al agente activo de Infraestructura');
 
     // Verificación de SLA 4 horas
-    const createdTime = new Date(ticket.created_at).getTime();
+    const createdTime = new Date(ticket.fecha_creacion).getTime();
     const limitTime = new Date(ticket.fecha_limite).getTime();
     const diffHours = (limitTime - createdTime) / (1000 * 60 * 60);
     assert.ok(Math.abs(diffHours - 4) < 0.1, 'Fecha límite debe ser de aproximadamente 4 horas');
@@ -249,7 +249,7 @@ describe('4. Gestión de Tickets: Creación, SLA y Asignación Automática', () 
     });
     assert.equal(res.status, 201);
     const ticket = await res.json();
-    const diffHours = (new Date(ticket.fecha_limite).getTime() - new Date(ticket.created_at).getTime()) / (1000 * 60 * 60);
+    const diffHours = (new Date(ticket.fecha_limite).getTime() - new Date(ticket.fecha_creacion).getTime()) / (1000 * 60 * 60);
     assert.ok(Math.abs(diffHours - 24) < 0.1, 'Fecha límite debe ser de 24 horas');
   });
 
@@ -267,7 +267,7 @@ describe('4. Gestión de Tickets: Creación, SLA y Asignación Automática', () 
     });
     assert.equal(res.status, 201);
     const ticket = await res.json();
-    const diffHours = (new Date(ticket.fecha_limite).getTime() - new Date(ticket.created_at).getTime()) / (1000 * 60 * 60);
+    const diffHours = (new Date(ticket.fecha_limite).getTime() - new Date(ticket.fecha_creacion).getTime()) / (1000 * 60 * 60);
     assert.ok(Math.abs(diffHours - 72) < 0.1, 'Fecha límite debe ser de 72 horas');
   });
 
