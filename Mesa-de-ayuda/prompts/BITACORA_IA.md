@@ -147,4 +147,96 @@
 9. **Siguiente paso:**
    Proceder con el **PROMPT 4 — Frontend React + Vite + Tailwind CSS**.
 
+---
+
+### PROMPT 4 — Implementación del frontend React + Vite + Tailwind CSS
+
+1. **Objetivo:**
+   Implementar el frontend completo, modular y profesional para el sistema "Mesa de ayuda con SLA e historial", desarrollado con React 18, Vite, Tailwind CSS y React Router v6, consumiendo exclusivamente los endpoints reales del backend Express con base de datos relacional SQLite (sin mocks ni sustitutos en memoria).
+
+2. **Archivos creados y modificados:**
+   - `frontend/.env`: Configuración local de `VITE_API_URL=http://localhost:3000/api` y `VITE_N8N_WEBHOOK_URL`.
+   - `frontend/src/utils/constants.js`: Definición sincronizada de estados (`abierto`, `en progreso`, `resuelto`, `cerrado`), prioridades (`baja`, `media`, `alta`), duraciones de SLA (4h, 24h, 72h), transiciones válidas, tipos de evento de historial y catálogo de áreas.
+   - `frontend/src/utils/formatters.js`: Formateo de fechas con `Intl.DateTimeFormat`, función `getSlaInfo` para cálculo de horas restantes o vencidas, badges de estado y prioridad.
+   - `frontend/src/services/api.js`: Cliente HTTP centralizado que maneja serialización JSON, headers, capturador de errores `{ error: '...' }` y métodos para agentes, clientes, tickets, comentarios, historial y resumen.
+   - `frontend/src/hooks/useFetch.js`: Hook reutilizable para llamadas asíncronas con gestión de `data`, `loading`, `error`, `refetch` y protección contra actualizaciones en componentes desmontados.
+   - `frontend/src/components/feedback/`:
+     - `LoadingSpinner.jsx`: Spinner animado para estados de carga.
+     - `ErrorMessage.jsx`: Alerta descriptiva de error con botón de reintento.
+     - `EmptyState.jsx`: Estado vacío con iconografía y botón de llamada a la acción.
+     - `ConfirmModal.jsx`: Diálogo modal accesible para confirmar acciones destructivas.
+   - `frontend/src/components/layout/`:
+     - `Sidebar.jsx`: Barra lateral de navegación con enlaces activos y tarjeta resumen de políticas SLA.
+     - `Navbar.jsx`: Encabezado con monitor en tiempo real del estado de la API (`/health`), botón de menú móvil y acción rápida de nuevo ticket.
+     - `Layout.jsx`: Contenedor maestro responsive que integra Sidebar, Navbar y `<Outlet />`.
+   - `frontend/src/components/tickets/`:
+     - `TicketBadge.jsx`: Badges estilizados para estados y prioridades.
+     - `SlaIndicator.jsx`: Indicador visual de SLA con alerta animada en tickets vencidos.
+   - `frontend/src/components/metrics/`:
+     - `MetricCard.jsx`: Tarjetas de KPI (Total, Abiertos, En Progreso, Resueltos, Vencidos).
+     - `AgentWorkloadChart.jsx`: Gráfico de barras de carga activa por agente y resalte de elegibilidad para auto-asignación.
+   - `frontend/src/components/forms/`:
+     - `FormField.jsx`: Envoltorio de inputs con soporte de etiquetas, textos de ayuda y errores de validación.
+     - `StatusChangeModal.jsx`: Modal de cambio de estado que exige comentario de resolución obligatorio cuando se transiciona a `resuelto`.
+   - `frontend/src/pages/`:
+     - `DashboardPage.jsx`: Vista principal con métricas de `GET /api/resumen`, alertas de tickets vencidos, cumplimiento de SLA y tickets recientes.
+     - `TicketsListPage.jsx`: Listado con pestañas de estado, búsqueda de texto libre, filtros de prioridad y área, ordenamiento dinámico y tabla con indicador de SLA.
+     - `TicketDetailPage.jsx`: Vista detallada con metadatos del cliente y agente, línea temporal de comentarios, formulario para añadir respuestas y trazabilidad de eventos de auditoría.
+     - `CreateTicketPage.jsx`: Formulario controlado para crear tickets con preview dinámico del SLA (4h, 24h, 72h), selección de clientes y captura de conflictos 409 (falta de agentes en área).
+     - `EditTicketPage.jsx`: Formulario para editar campos permitidos y reasignar agentes con registro en el historial.
+     - `AgentsPage.jsx`: CRUD de agentes con modal de creación/edición, control de estado activo y modal de borrado con manejo de 409 (`ON DELETE RESTRICT`).
+     - `ClientsPage.jsx`: CRUD de clientes con modal de creación/edición y confirmación de borrado con protección referencial.
+     - `NotFoundPage.jsx`: Vista 404 personalizada para rutas no existentes.
+   - `frontend/src/routes/AppRoutes.jsx`: Enrutador declarativo con React Router v6.
+   - `frontend/src/main.jsx`: Punto de entrada con montaje en `React.StrictMode`.
+   - `frontend/src/index.css`: Estilos globales y utilidades de animación en Tailwind CSS.
+
+3. **Componentes y páginas implementados:**
+   - 8 vistas completas implementadas en `pages/`.
+   - 12 componentes modulares y reutilizables en `components/`.
+   - 1 servicio HTTP centralizado en `services/api.js`.
+   - 1 custom hook `useFetch` en `hooks/useFetch.js`.
+
+4. **Endpoints reales consumidos:**
+   - `GET /api/health`: Monitor de conectividad en el Navbar.
+   - `GET /api/resumen`: Métricas de estado, SLA, tiempos promedio y carga por agente en el Dashboard.
+   - `GET /api/tickets`: Listado con query params (`q`, `estado`, `prioridad`, `area`, `sortBy`, `order`).
+   - `POST /api/tickets`: Creación con auto-asignación y cálculo de fecha límite.
+   - `GET /api/tickets/:id`: Consulta del detalle completo, comentarios e historial.
+   - `PATCH /api/tickets/:id`: Edición de datos generales y reasignación de agente.
+   - `PATCH /api/tickets/:id/estado`: Transiciones de estado con validación de comentario para `resuelto`.
+   - `POST /api/tickets/:id/comentarios`: Registro de nuevos comentarios asociados.
+   - `GET /api/agentes`, `POST /api/agentes`, `PATCH /api/agentes/:id`, `DELETE /api/agentes/:id`: CRUD de agentes.
+   - `GET /api/clientes`, `POST /api/clientes`, `PATCH /api/clientes/:id`, `DELETE /api/clientes/:id`: CRUD de clientes.
+
+5. **Decisiones de diseño:**
+   - Se empleó una estética corporativa y limpia (Tailwind CSS) con una paleta de colores basada en Slate, Sky, Indigo, Emerald, Amber y Rose.
+   - Resalte visual prioritario para los tickets con SLA vencido mediante indicadores animados en rojo.
+   - Manejo defensivo de errores HTTP 400, 404 y 409, mostrando mensajes inteligibles al usuario sin fingir éxito.
+   - Prevención de fugas de memoria al desmontar componentes asíncronos mediante `useRef` en `useFetch`.
+
+6. **Problemas encontrados y correcciones:**
+   - *Instalación limpia de paquetes:* El directorio `frontend/` requirió la ejecución inicial de `npm install` para materializar `node_modules` con React 18, React Router v6 y Lucide Icons.
+   - *Validación en cliente de comentario obligatorio:* Se implementó doble control (validación en el modal de interfaz y soporte de respuesta del servidor) para garantizar que ningún ticket pase a `resuelto` sin la debida justificación técnica.
+
+7. **Pruebas ejecutadas y resultados reales:**
+   - `npm run build` en `frontend/`: Compilación exitosa en 7.02s con 1973 módulos transformados sin errores de imports ni de sintaxis.
+   - Servidor Express backend (`http://localhost:3000`): Verificado en vivo mediante llamada a `/api/health` retornando `{ status: "ok" }`.
+   - Servidor Vite frontend (`http://localhost:5173`): Activo y verificado en 978 ms.
+   - **Prueba End-to-End con Browser Subagent:**
+     - Navegación al Dashboard: Verificación de KPIs, cumplimiento de SLA, tiempos promedio y carga de agentes.
+     - Navegación a Tickets (`/tickets`): Verificación de tabla con semillas reales, badges de prioridad/estado e indicadores de SLA.
+     - Navegación al Detalle (`/tickets/1`): Verificación de cards de cliente/agente, fechas, hilo de comentarios e historial auditable.
+     - Navegación a Nuevo Ticket (`/tickets/nuevo`): Verificación de selectores de clientes y áreas, y selector interactivo de prioridad (4h, 24h, 72h).
+     - Navegación a Agentes (`/agentes`): Verificación de listado, áreas y estados de actividad.
+     - Navegación a Clientes (`/clientes`): Verificación de directorio de clientes corporativos.
+     - Inspección de consola del navegador: 0 errores de JavaScript en todas las vistas navegadas. Grabación de sesión generada en WebP.
+
+8. **Funcionalidades pendientes:**
+   - Integración con el workflow automatizado de n8n para sugerencias de IA y autocompletado inteligente (reservado para el PROMPT 5).
+
+9. **Próximo prompt recomendado:**
+   **PROMPT 5 — Workflow de n8n con AI Agent y DeepSeek**.
+
+
 
