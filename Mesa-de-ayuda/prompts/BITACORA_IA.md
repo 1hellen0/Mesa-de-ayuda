@@ -627,13 +627,117 @@
    - `node --test n8n/tests/workflow-validation.test.js`: 13 de 13 pruebas aprobadas.
 
 5. **Siguiente paso:**
-   Importar `n8n/workflows/mesa-ayuda-ai-agent-fixed.json` en n8n local, vincular la credencial de DeepSeek y activar o ejecutar con "Test workflow".
+### IMPLEMENTACIÓN VISUAL DE NEXORA — PROPUESTA 2
 
+1. **Objetivo del prompt:**
+   Rediseñar la aplicación completa de "Mesa de Ayuda con SLA e Historial" bajo la identidad de producto **NEXORA Intelligence Operations**, tomando como referencia visual estricta la Propuesta 2 (diseño editorial, asimétrico, cinematográfico y empresarial de alta gama). Se requirió reproducir la paleta cromática (Marfil `#F3F0E9`, Verde pino profundo `#202C2A`, Verde salvia `#A9B8A5`, Bronce `#C49A6C`, Carbón `#252A30`, Blanco `#FFFFFF`), eliminar gradientes neón o tarjetas genéricas, preservar el 100% de la funcionalidad existente (Express, SQLite, SLA 4/24/72h, auto-asignación por carga, máquina de estados, historial inmutable, integración con n8n/DeepSeek) y destacar el **Ticket #42** de *Distribuidora Global* como caso demostrativo de trazabilidad completa.
 
+2. **Decisiones de Diseño y Dirección Creativa:**
+   - **Sistema Tipográfico:** Incorporación de *Plus Jakarta Sans* para encabezados editoriales y acentos numéricos de impacto (`font-display`), combinada con *Inter* para tablas y datos de alta densidad.
+   - **Paleta Cromática Armónica:** Tokens configurados en Tailwind CSS:
+     - Marfil de fondo editorial: `#F3F0E9`
+     - Verde pino profundo: `#202C2A` (barra lateral y acentos de contraste)
+     - Bronce corporativo: `#C49A6C` (insignias, indicadores de SLA y botones de acción)
+     - Verde salvia: `#A9B8A5` (estados de éxito, métricas cumplidas y bordes suaves)
+     - Carbón editorial: `#252A30` (tipografía principal de lectura)
+     - Bordes estructurados: `#E2DDD2` y superficies `#FFFFFF`
+   - **Atmósfera Cinematográfica:** Fondos ambientales generados con fotografía minimalista de interiores arquitectónicos (`nexora_hero_bg.jpg`) y cordillera al anochecer (`nexora_mountain_bg.jpg`) para el banner final de trazabilidad ("Cada incidencia tiene un recorrido. Cada acción deja evidencia").
+   - **Preservación Funcional Absoluta:** Cero mocks y cero simulaciones. Todos los datos mostrados en el Centro de Operaciones, listado, métricas y detalle provienen de las consultas SQL reales a `backend/database/mesa.db`.
 
+3. **Archivos Creados:**
+   - `frontend/src/components/common/NexoraLogo.jsx`: Identidad geométrica "N" estilizada en bronce y salvia con versiones clara y oscura.
+   - `frontend/src/pages/HomePage.jsx`: Landing page editorial con:
+     - Hero cinematográfico con propuesta de valor y acceso directo.
+     - Vitrina interactiva del **Ticket #42** (*Distribuidora Global*) con stepper del ciclo de vida (`Creado 22:21` → `Analizado IA` → `Asignado` → `En atención` → `Resuelto 22:26` → `Cerrado 22:32`) y recomendación de DeepSeek.
+     - Sección "Un problema, una solución" con comparación asimétrica de 4 dolores operativos vs. 4 pilares de NEXORA.
+     - Grilla Bento de 6 "Capacidades inteligentes" en verde pino profundo.
+     - Stepper explicativo del "Ciclo de vida de un ticket" y tarjeta del stack arquitectónico (React, Vite, Express, SQLite, n8n, DeepSeek).
+     - Banner panorámico atmosférico con lema de trazabilidad y acceso rápido.
+   - `frontend/src/pages/MetricsPage.jsx`: Pantalla especializada de métricas operacionales con:
+     - Gráfico Donut SVG de tickets por estado con conteo central.
+     - Gráfico spline curvo de tiempo de resolución vs. objetivo de SLA de 4 horas.
+     - Gráfico de barras de tickets por prioridad (Crítica, Alta, Media, Baja).
+     - Línea temporal de auditoría y actividad reciente con enlaces de navegación.
 
+4. **Archivos Modificados:**
+   - `frontend/tailwind.config.js`: Integración de tokens de color `nexora` (`ivory`, `pine`, `sage`, `bronze`, `charcoal`), sombras suaves y fuentes personalizadas.
+   - `frontend/index.html`: Carga de Google Fonts (*Plus Jakarta Sans* e *Inter*) y actualización del título a **NEXORA Intelligence Operations**.
+   - `frontend/src/index.css`: Ajustes globales de antialiasing, utilidades `.nexora-glass-dark`, `.nexora-glass-light` y scrollbars estilizadas.
+   - `frontend/src/components/layout/Sidebar.jsx`: Navegación lateral verde pino (`#202C2A`), logotipo NEXORA, cuadro resumen de políticas de SLA, enlaces a rutas principales y estado "Sistema en línea".
+   - `frontend/src/components/layout/Navbar.jsx`: Barra superior marfil con buscador global, reloj en vivo, badge de estado del API Express y avatar del agente de guardia.
+   - `frontend/src/components/layout/Layout.jsx`: Contenedor principal con fondo marfil (`#F3F0E9`) y desplazamiento adaptable.
+   - `frontend/src/routes/AppRoutes.jsx`: Enrutamiento con `/` para `HomePage`, `/dashboard` para `DashboardPage`, `/metricas` para `MetricsPage`, y todas las rutas internas de tickets, agentes y clientes bajo `Layout`.
+   - `frontend/src/pages/DashboardPage.jsx`: Centro de Operaciones con 4 KPIs superiores, stepper visual del flujo de tickets, gráfico Donut de carga por agente, alertas de SLA en riesgo y actividad en vivo.
+   - `frontend/src/pages/TicketsListPage.jsx`: Tabla refinada con buscador dinámico, selectores de estado, prioridad y área, badges de SLA y paginación.
+   - `frontend/src/pages/CreateTicketPage.jsx`: Formulario empresarial con panel de recomendación de IA DeepSeek (`AiRecommendationPanel`), selector de prioridades SLA y cálculo de auto-asignación.
+   - `frontend/src/pages/TicketDetailPage.jsx`: Ficha operativa integral con stepper de ciclo de vida, trazabilidad del Ticket #42, comentarios destacados de resolución e historial inmutable de auditoría.
+   - `frontend/src/pages/AgentsPage.jsx` y `frontend/src/pages/ClientsPage.jsx`: Rediseño con la paleta marfil, pino y bronce, tablas consistentes y modales con diseño NEXORA.
+   - `frontend/src/pages/EditTicketPage.jsx` y `frontend/src/pages/NotFoundPage.jsx`: Alineación cromática y tipográfica con la identidad de marca.
+   - `frontend/src/utils/formatters.js`: Actualización de badges de estado y prioridad a los tonos oficiales Nexora y adición del helper `formatRelativeTime`.
 
+5. **Pruebas y Verificaciones Realizadas:**
+   - **Compilación de producción de Vite (`npm run build`):** Éxito (código 0). Generó bundle optimizado (`dist/index.html` 0.86 kB, `index-*.css` 48.11 kB, `index-*.js` 342.46 kB en 13.35s).
+   - **Pruebas unitarias y de integración de Frontend (`npm test` en `frontend/`):** 15 de 15 pruebas aprobadas (código 0) en 207ms.
+   - **Pruebas de integración del Backend (`npm test` en `backend/`):** 45 de 45 pruebas aprobadas (código 0) en 1094ms, verificando SLA, asignación automática, auditoría y transacciones SQLite.
+   - **Inspección visual en navegador real (Browser Subagent):**
+     - Verificación de la Homepage en `http://localhost:5173/` con hero, caso Ticket #42, bento grid y banner.
+     - Verificación del Centro de Operaciones en `http://localhost:5173/dashboard` con métricas, stepper, carga por agente y alertas de SLA.
+     - Verificación del listado de tickets en `http://localhost:5173/tickets` con filtros y paginación.
+     - Verificación del detalle del Ticket #42 en `http://localhost:5173/tickets/42` con comentarios e historial de auditoría.
+     - Verificación de la pantalla de métricas en `http://localhost:5173/metricas` con gráficos Donut, curvas de tiempo y barras de prioridad.
+     - Verificación del formulario de creación en `http://localhost:5173/tickets/nuevo` con el panel de DeepSeek.
 
+6. **Resultado:**
+   La aplicación ha sido transformada visualmente al estándar de la Propuesta 2, convirtiéndose en un producto de nivel empresarial sofisticado y cinematográfico, manteniendo al 100% su operatividad técnica con Express, SQLite y n8n.
+
+---
+
+### REVISIÓN FINAL DE CALIDAD — NEXORA INTELLIGENCE OPERATIONS
+
+1. **Objetivo de la auditoría:**
+   Realizar una auditoría técnica y funcional exhaustiva del sistema tras la implementación visual de NEXORA. Comprobar la rigurosidad en los límites de SLA por prioridad (Alta: 4h, Media: 24h, Baja: 72h) eliminando cualquier umbral universal erróneo; erradicar la prioridad no oficial "Crítica" del catálogo de visualización; asegurar la consistencia temporal bajo la zona horaria `America/Costa_Rica` (UTC-6) sin sesgos en el cálculo de horas; y verificar la integridad operativa del backend, base de datos SQLite, asignación automática, máquina de estados, integración con n8n/DeepSeek y suites de pruebas automatizadas.
+
+2. **Debilidades detectadas y correcciones aplicadas:**
+   - **SLA — Umbral universal vs. Vencimiento individual:**
+     - *Defecto:* En `/metricas`, el gráfico de tiempo de resolución comparaba todos los tickets contra una línea estática de "Objetivo: < 4h", clasificando incorrectamente tickets de prioridad media (24h) y baja (72h) como fuera de SLA. En `/dashboard`, el filtro de "En Riesgo" calculaba tickets activos sin filtrar por la ventana crítica restante `<= 4 horas`.
+     - *Corrección:* Se reescribió `getSlaInfo` en `frontend/src/utils/formatters.js` para contrastar individualmente la fecha límite (`fecha_limite`) calculada en backend contra `fecha_resolucion` (o `Date.now()` para activos). En `DashboardPage.jsx`, se delimitó estrictamente la condición de riesgo a `diffHoras <= 4 && diffHoras >= 0`. En `MetricsPage.jsx`, se eliminó la meta plana de 4h y se reemplazó por la política segmentada oficial (Alta: 4h, Media: 24h, Baja: 72h).
+   - **Catálogo de prioridades — Eliminación de «Crítica»:**
+     - *Defecto:* En `MetricsPage.jsx`, el objeto de conteo inicial y el gráfico de barras incluían "Crítica" como categoría visible con valor 0, introducida durante el maquetado del rediseño visual. La base de datos (`schema.sql`) rechaza cualquier valor fuera de `baja`, `media`, `alta`.
+     - *Corrección:* Se removió "Crítica" de los contadores y del gráfico de barras en `MetricsPage.jsx`. Se sincronizó con `DashboardPage.jsx` donde se retiró la etiqueta obsoleta "(Crítica: 4h)". La visualización refleja estrictamente las 3 columnas canónicas (`alta`, `media`, `baja`).
+   - **Zona horaria — Sesgo de interpretación UTC a local:**
+     - *Defecto:* SQLite almacena fechas como cadenas ISO sin sufijo de zona horaria (`YYYY-MM-DD HH:MM:SS`) generadas en UTC por `datetime('now')`. Los navegadores y entornos V8 interpretan estas cadenas como hora local si no llevan la designación `Z`, ocasionando un desplazamiento de +6 horas en Costa Rica (UTC-6) que falseaba el cálculo de `getSlaInfo`.
+     - *Corrección:* Se creó el helper `parseDate(dateString)` en `formatters.js` y `parseDateUtc` en `backend/src/utils/dateUtils.js`, asegurando que toda fecha SQLite sea interpretada como UTC (`+ 'Z'`). Se configuró la visualización en `Intl.DateTimeFormat` con `timeZone: 'America/Costa_Rica'` en `formatDate`, `formatTime` y `Navbar.jsx`.
+
+3. **Archivos creados y modificados:**
+   - `frontend/src/utils/formatters.js`: Normalización UTC `parseDate`, configuración de zona horaria `America/Costa_Rica`, refactorización de `getSlaInfo` y límites oficiales en `getPriorityConfig`.
+   - `backend/src/utils/dateUtils.js`: Helper `parseDateUtc` y verificación precisa de `isSlaBreached`.
+   - `frontend/src/pages/DashboardPage.jsx`: Corrección en cálculo de tickets en riesgo (`<= 4h` restantes) y depuración del texto de políticas SLA.
+   - `frontend/src/pages/MetricsPage.jsx`: Supresión de "Crítica" en conteos y barras; eliminación de la línea universal de 4h en el gráfico de tiempos de resolución.
+   - `frontend/src/components/layout/Navbar.jsx`: Reloj operativo en vivo sincronizado explícitamente con `America/Costa_Rica`.
+   - `frontend/tests/qualityAudit.test.js` *(Creado)*: Suite con 10 pruebas unitarias que validan umbrales SLA (4h, 24h, 72h), ausencia de regla universal de 4h, cumplimiento de `fecha_resolucion`, catálogo estricto y conversión UTC a Costa Rica.
+   - `frontend/package.json`: Script `"test"` actualizado para ejecutar concurrentemente `aiIntegration.test.js` y `qualityAudit.test.js`.
+
+4. **Resultados reales de verificación y pruebas:**
+   - **Pruebas Frontend (`npm test` en `frontend/`):**
+     - Total: **25 de 25 pruebas aprobadas** (15 de integración IA + 10 de auditoría de calidad).
+     - Duración: ~238 ms.
+     - Códigos de salida: 0 fallos.
+   - **Pruebas Backend (`npm test` en `backend/`):**
+     - Total: **45 de 45 pruebas aprobadas** en 9 suites.
+     - Duración: ~1496 ms.
+     - Cobertura: SLA 4h/24h/72h, auto-asignación por menor carga, reversión transaccional, errores 400/404/409, y validación estricta de áreas.
+   - **Verificación de Base de Datos SQLite (`node database/verifyDb.js`):**
+     - Total: **9 de 9 verificaciones aprobadas**.
+     - Restricciones CHECK, claves foráneas `ON DELETE RESTRICT`, integridad de historial y transacciones validadas al 100%.
+   - **Compilación de Producción (`npm run build` en `frontend/`):**
+     - Vite v6.4.5: Éxito en 6.80s.
+     - `dist/index.html`: 0.86 kB
+     - `dist/assets/index-CqKBAKo-.css`: 48.16 kB
+     - `dist/assets/index-CMSOfm1b.js`: 344.02 kB
+     - 0 errores de sintaxis, tipos o referencias rotas.
+
+5. **Estado final del sistema:**
+   **Completado y Auditado.** NEXORA Intelligence Operations opera con consistencia matemática total en métricas y SLAs, alineación estricta con el catálogo relacional, manejo temporal determinista en la zona horaria de Costa Rica y verificación automatizada integral.
 
 
 

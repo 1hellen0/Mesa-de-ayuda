@@ -9,7 +9,9 @@ import {
   CheckCircle2,
   Info,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Layers,
+  ShieldCheck
 } from 'lucide-react';
 import { api } from '../services/api';
 import { aiService } from '../services/aiService';
@@ -74,7 +76,6 @@ export function CreateTicketPage() {
     const tituloTrimmed = formData.titulo.trim();
     const descTrimmed = formData.descripcion.trim();
 
-    // Validación previa: título y descripción no pueden estar vacíos
     if (!tituloTrimmed || tituloTrimmed.length < 3) {
       setFormErrors((prev) => ({
         ...prev,
@@ -93,7 +94,6 @@ export function CreateTicketPage() {
       return;
     }
 
-    // Obtener datos del cliente si ya fue seleccionado
     const selectedClient = Array.isArray(clients)
       ? clients.find((c) => String(c.id) === String(formData.cliente_id))
       : null;
@@ -101,38 +101,35 @@ export function CreateTicketPage() {
     setAiLoading(true);
 
     try {
-      const response = await aiService.analyzeTicket({
+      const payload = {
         titulo: tituloTrimmed,
         descripcion: descTrimmed,
-        clienteNombre: selectedClient?.nombre || 'Cliente solicitante',
+        clienteNombre: selectedClient?.nombre || 'Cliente',
         empresa: selectedClient?.empresa || null,
-        area: formData.area,
-        prioridad: formData.prioridad
-      });
+        area: formData.area || null,
+        prioridad: formData.prioridad || null
+      };
 
-      if (response?.ok && response?.data) {
-        setAiRecommendation(response.data);
-        setAiError(null);
-      } else {
-        setAiError('El servicio de IA no devolvió un resultado válido.');
-      }
+      const result = await aiService.analyzeTicket(payload);
+      setAiRecommendation(result);
     } catch (err) {
-      setAiError(err.message || 'No fue posible completar el análisis con el servicio de IA.');
+      setAiError(err.message || 'No se pudo comunicar con el agente de IA de DeepSeek.');
     } finally {
       setAiLoading(false);
     }
   };
 
-  // Aplicación manual e independiente de sugerencias
-  const handleApplyPriority = (suggestedPriority) => {
-    if (suggestedPriority) {
-      setFormData((prev) => ({ ...prev, prioridad: suggestedPriority }));
+  const handleApplyPriority = (sugPriority) => {
+    if (sugPriority) {
+      setFormData((prev) => ({ ...prev, prioridad: sugPriority }));
+      if (formErrors.prioridad) setFormErrors((prev) => ({ ...prev, prioridad: null }));
     }
   };
 
-  const handleApplyArea = (suggestedArea) => {
-    if (suggestedArea) {
-      setFormData((prev) => ({ ...prev, area: suggestedArea }));
+  const handleApplyArea = (sugArea) => {
+    if (sugArea) {
+      setFormData((prev) => ({ ...prev, area: sugArea }));
+      if (formErrors.area) setFormErrors((prev) => ({ ...prev, area: null }));
     }
   };
 
@@ -141,80 +138,100 @@ export function CreateTicketPage() {
     setServerError(null);
 
     const errors = validate();
-    setFormErrors(errors);
-
-    if (Object.keys(errors).length > 0) return;
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
 
     setIsSubmitting(true);
+
     try {
-      const created = await api.createTicket({
+      const payload = {
         titulo: formData.titulo.trim(),
         descripcion: formData.descripcion.trim(),
         cliente_id: Number(formData.cliente_id),
         area: formData.area,
         prioridad: formData.prioridad
-      });
+      };
 
-      // Redirigir directamente al detalle del ticket recién creado
+      const created = await api.createTicket(payload);
       navigate(`/tickets/${created.id}`);
     } catch (err) {
-      setServerError(err.message || 'No fue posible registrar el ticket.');
+      setServerError(err.message || 'Error inesperado al crear el ticket en el backend.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const slaDuration = SLA_HOURS[formData.prioridad] || 24;
-
   if (loadingClients) {
-    return <LoadingSpinner message="Cargando directorio de clientes..." />;
+    return <LoadingSpinner message="Preparando formulario de registro..." />;
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
-      {/* Back button */}
-      <div>
-        <Link
-          to="/tickets"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Volver a la lista de tickets</span>
+    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-12">
+      
+      {/* Breadcrumb / Navegación */}
+      <div className="flex items-center gap-2 text-xs font-semibold text-[#7A8C76]">
+        <Link to="/tickets" className="hover:text-[#202C2A] transition-colors flex items-center gap-1">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>Volver a Tickets</span>
         </Link>
+        <span>/</span>
+        <span className="text-[#202C2A]">Nuevo Ticket</span>
       </div>
 
-      {/* Main card */}
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs">
-        <div className="border-b border-slate-100 pb-5 mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      {/* Contenedor Principal */}
+      <div className="rounded-2xl border border-[#DFD9CD] bg-white p-6 sm:p-8 shadow-sm">
+        
+        {/* Encabezado del Formulario */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-[#DFD9CD] pb-5 mb-6 gap-4">
           <div>
-            <h1 className="text-xl font-black text-slate-900 sm:text-2xl">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C49A6C]">
+              Ingreso de Incidencia
+            </span>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-[#202C2A] mt-0.5">
               Registrar Nuevo Ticket
             </h1>
-            <p className="mt-1 text-xs text-slate-500">
-              El sistema calculará automáticamente la fecha límite del SLA y asignará al agente disponible con menor carga operativa.
+            <p className="text-xs text-[#7A8C76] mt-1">
+              El sistema asignará automáticamente el agente del área con menor carga activa.
             </p>
           </div>
 
-          {/* Botón superior de Análisis con IA */}
+          {/* Botón de Análisis con DeepSeek */}
           <button
             type="button"
             id="btn-analizar-ia-top"
             onClick={handleAnalyzeWithAi}
             disabled={aiLoading || isSubmitting}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-indigo-500/20 hover:from-indigo-500 hover:to-purple-500 transition disabled:opacity-50 shrink-0"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#202C2A] px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-sm border border-[#C49A6C]/40 hover:bg-[#2B3B38] hover:border-[#C49A6C] transition disabled:opacity-50 shrink-0"
           >
             {aiLoading ? (
               <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
+                <RefreshCw className="h-4 w-4 animate-spin text-[#C49A6C]" />
                 <span>Analizando...</span>
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-4 w-4 text-[#C49A6C]" />
                 <span>Analizar con IA</span>
               </>
             )}
           </button>
+        </div>
+
+        {/* Panel de IA si está cargando, con error o con recomendación */}
+        <div className="mb-6">
+          <AiRecommendationPanel
+            recommendation={aiRecommendation}
+            isLoading={aiLoading}
+            error={aiError}
+            onRetry={handleAnalyzeWithAi}
+            onApplyPriority={handleApplyPriority}
+            onApplyArea={handleApplyArea}
+            currentPriority={formData.prioridad}
+            currentArea={formData.area}
+            mode="create"
+          />
         </div>
 
         {serverError && (
@@ -227,7 +244,9 @@ export function CreateTicketPage() {
           </div>
         )}
 
+        {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-6">
+          
           {/* Título */}
           <FormField
             label="Título de la Incidencia"
@@ -244,8 +263,8 @@ export function CreateTicketPage() {
                 setFormData({ ...formData, titulo: e.target.value });
                 if (formErrors.titulo) setFormErrors({ ...formErrors, titulo: null });
               }}
-              placeholder="Ej: Falla de autenticación en pasarela de pagos"
-              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-800 shadow-2xs placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              placeholder="Ej: Falla en pasarela de pagos al confirmar transacción"
+              className="w-full rounded-xl border border-[#DFD9CD] bg-[#FAF8F4] px-4 py-2.5 text-xs font-medium text-[#252A30] placeholder:text-[#7A8C76] focus:border-[#C49A6C] focus:bg-white focus:outline-none transition-all"
             />
           </FormField>
 
@@ -265,7 +284,7 @@ export function CreateTicketPage() {
                   setFormData({ ...formData, cliente_id: e.target.value });
                   if (formErrors.cliente_id) setFormErrors({ ...formErrors, cliente_id: null });
                 }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                className="w-full rounded-xl border border-[#DFD9CD] bg-[#FAF8F4] px-4 py-2.5 text-xs font-semibold text-[#252A30] focus:border-[#C49A6C] focus:bg-white focus:outline-none transition-all cursor-pointer"
               >
                 <option value="">-- Seleccione un cliente --</option>
                 {Array.isArray(clients) &&
@@ -292,7 +311,7 @@ export function CreateTicketPage() {
                   setFormData({ ...formData, area: e.target.value });
                   if (formErrors.area) setFormErrors({ ...formErrors, area: null });
                 }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                className="w-full rounded-xl border border-[#DFD9CD] bg-[#FAF8F4] px-4 py-2.5 text-xs font-semibold text-[#252A30] focus:border-[#C49A6C] focus:bg-white focus:outline-none transition-all cursor-pointer"
               >
                 {COMMON_AREAS.map((a) => (
                   <option key={a} value={a}>
@@ -305,7 +324,7 @@ export function CreateTicketPage() {
 
           {/* Selector de Prioridad con previsualización del SLA */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-2">
+            <label className="block text-xs font-bold text-[#202C2A] mb-2 uppercase tracking-wider">
               Nivel de Prioridad y SLA <span className="text-rose-500">*</span>
             </label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -314,25 +333,25 @@ export function CreateTicketPage() {
                   id: TICKET_PRIORITY.ALTA,
                   label: 'Alta',
                   hours: 4,
-                  desc: 'Incidentes críticos con impacto operativo',
-                  borderActive: 'border-rose-500 bg-rose-50/50 text-rose-900',
+                  desc: 'Incidentes críticos con impacto operativo directo',
+                  borderActive: 'border-rose-400 bg-rose-50/70 text-rose-900',
                   badge: 'bg-rose-100 text-rose-800'
                 },
                 {
                   id: TICKET_PRIORITY.MEDIA,
                   label: 'Media',
                   hours: 24,
-                  desc: 'Consultas regulares y fallas parciales',
-                  borderActive: 'border-amber-500 bg-amber-50/50 text-amber-900',
-                  badge: 'bg-amber-100 text-amber-800'
+                  desc: 'Fallas no bloqueantes o consultas regulares',
+                  borderActive: 'border-[#C49A6C] bg-[#FAF8F4] text-[#202C2A]',
+                  badge: 'bg-[#C49A6C]/20 text-[#202C2A]'
                 },
                 {
                   id: TICKET_PRIORITY.BAJA,
                   label: 'Baja',
                   hours: 72,
-                  desc: 'Solicitudes menores o requerimientos informativos',
-                  borderActive: 'border-emerald-500 bg-emerald-50/50 text-emerald-900',
-                  badge: 'bg-emerald-100 text-emerald-800'
+                  desc: 'Dudas generales, solicitudes o requerimientos informativos',
+                  borderActive: 'border-[#A9B8A5] bg-[#E6EBE4]/60 text-[#202C2A]',
+                  badge: 'bg-[#A9B8A5]/30 text-[#202C2A]'
                 }
               ].map((p) => {
                 const isSelected = formData.prioridad === p.id;
@@ -341,131 +360,82 @@ export function CreateTicketPage() {
                     key={p.id}
                     type="button"
                     onClick={() => setFormData({ ...formData, prioridad: p.id })}
-                    className={`rounded-xl border p-3.5 text-left transition flex flex-col justify-between ${
+                    className={`rounded-xl border p-4 text-left transition flex flex-col justify-between ${
                       isSelected
-                        ? `${p.borderActive} ring-2 ring-sky-500/20 shadow-xs font-semibold`
-                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                        ? `${p.borderActive} ring-2 ring-[#C49A6C]/30 shadow-xs font-semibold`
+                        : 'border-[#DFD9CD] bg-[#FAF8F4] hover:bg-white text-[#252A30]'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold">{p.label}</span>
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${p.badge}`}>
-                        {p.hours} horas
+                      <span className="font-bold text-xs">{p.label}</span>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${p.badge}`}>
+                        SLA {p.hours}h
                       </span>
                     </div>
-                    <p className="mt-2 text-[11px] text-slate-500 leading-snug">
+                    <p className="mt-2 text-[11px] text-[#7A8C76] leading-relaxed">
                       {p.desc}
                     </p>
                   </button>
                 );
               })}
             </div>
-          </div>
-
-          {/* SLA Preview Info Card */}
-          <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-3.5 flex items-center gap-3 text-xs text-sky-900">
-            <Clock className="h-5 w-5 text-sky-600 shrink-0" />
-            <div>
-              <p className="font-semibold">
-                Plazo de SLA calculado: {slaDuration} horas desde la creación.
-              </p>
-              <p className="text-[11px] text-sky-700 mt-0.5">
-                Al enviar el formulario, el ticket avanzará de forma automática a 'en progreso' al asignarse al agente con menor carga del área de {formData.area}.
-              </p>
-            </div>
+            {formErrors.prioridad && (
+              <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.prioridad}</p>
+            )}
           </div>
 
           {/* Descripción */}
           <FormField
-            label="Detalle Completo del Problema"
+            label="Descripción Detallada"
             id="ticket-descripcion"
             required
             error={formErrors.descripcion}
-            helpText="Especifique los pasos para reproducir o los detalles técnicos relevantes (mínimo 5 caracteres)."
+            helpText="Explique los pasos para reproducir o los detalles específicos del incidente (mínimo 5 caracteres)."
           >
             <textarea
               id="ticket-descripcion"
-              rows={4}
+              rows={5}
               value={formData.descripcion}
               onChange={(e) => {
                 setFormData({ ...formData, descripcion: e.target.value });
                 if (formErrors.descripcion) setFormErrors({ ...formErrors, descripcion: null });
               }}
-              placeholder="Describa el incidente con toda la información necesaria..."
-              className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-xs text-slate-800 shadow-2xs placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              placeholder="Describa el problema detalladamente..."
+              className="w-full rounded-xl border border-[#DFD9CD] bg-[#FAF8F4] px-4 py-3 text-xs font-medium text-[#252A30] placeholder:text-[#7A8C76] focus:border-[#C49A6C] focus:bg-white focus:outline-none transition-all leading-relaxed"
             />
           </FormField>
 
-          {/* Barra de llamada a IA complementaria junto a la descripción */}
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <Sparkles className="h-5 w-5 text-indigo-600 shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-indigo-950">
-                  ¿Desea sugerencias automáticas de prioridad, área y respuesta?
-                </p>
-                <p className="text-[11px] text-indigo-700">
-                  El agente inteligente de DeepSeek analizará el texto sin alterar el formulario a menos que usted lo decida.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              id="btn-analizar-ia-inline"
-              onClick={handleAnalyzeWithAi}
-              disabled={aiLoading || isSubmitting}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition disabled:opacity-50 shrink-0"
+          {/* Botones de acción */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#DFD9CD]">
+            <Link
+              to="/tickets"
+              className="rounded-xl border border-[#DFD9CD] bg-white px-5 py-2.5 text-xs font-bold text-[#7A8C76] hover:bg-[#FAF8F4] hover:text-[#202C2A] transition"
             >
-              {aiLoading ? (
+              Cancelar
+            </Link>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#202C2A] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-sm border border-[#C49A6C]/50 hover:bg-[#2B3B38] hover:border-[#C49A6C] transition disabled:opacity-50"
+            >
+              {isSubmitting ? (
                 <>
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                  <span>Analizando...</span>
+                  <RefreshCw className="h-4 w-4 animate-spin text-[#C49A6C]" />
+                  <span>Procesando...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>Analizar con IA</span>
+                  <Send className="h-4 w-4 text-[#C49A6C]" />
+                  <span>Registrar Ticket</span>
                 </>
               )}
             </button>
           </div>
 
-          {/* Panel de Recomendaciones de IA (se muestra durante carga, error o recomendación) */}
-          {(aiLoading || aiError || aiRecommendation) && (
-            <AiRecommendationPanel
-              recommendation={aiRecommendation}
-              isLoading={aiLoading}
-              error={aiError}
-              onRetry={handleAnalyzeWithAi}
-              onApplyPriority={handleApplyPriority}
-              onApplyArea={handleApplyArea}
-              currentPriority={formData.prioridad}
-              currentArea={formData.area}
-              mode="create"
-            />
-          )}
-
-          {/* Submit buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-            <Link
-              to="/tickets"
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-            >
-              Cancelar
-            </Link>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-6 py-2.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/20 hover:from-sky-500 hover:to-indigo-500 transition disabled:opacity-50"
-            >
-              <Send className="h-3.5 w-3.5" />
-              <span>{isSubmitting ? 'Registrando Ticket...' : 'Crear Ticket'}</span>
-            </button>
-          </div>
         </form>
+
       </div>
     </div>
   );
 }
-
-export default CreateTicketPage;

@@ -9,9 +9,9 @@ export function LoadingSpinner({ message = 'Cargando información...', size = 'd
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-8 text-slate-500">
-      <Loader2 className={`${sizeClasses[size] || sizeClasses.default} animate-spin text-sky-600 mb-3`} />
-      {message && <p className="text-sm font-medium text-slate-600">{message}</p>}
+    <div className="flex flex-col items-center justify-center p-8 text-[#252A30]/60">
+      <Loader2 className={`${sizeClasses[size] || sizeClasses.default} animate-spin text-[#C49A6C] mb-3`} />
+      {message && <p className="text-sm font-medium text-[#202C2A]">{message}</p>}
     </div>
   );
 }

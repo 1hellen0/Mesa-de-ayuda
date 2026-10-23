@@ -69,23 +69,22 @@ export function EditTicketPage() {
       errors.descripcion = 'La descripción debe tener al menos 5 caracteres.';
     }
     if (!formData.area) {
-      errors.area = 'El área es requerida.';
+      errors.area = 'Debe seleccionar un área.';
     }
     if (!formData.prioridad) {
-      errors.prioridad = 'La prioridad es requerida.';
+      errors.prioridad = 'Debe seleccionar una prioridad.';
     }
-    return errors;
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setServerError(null);
-
-    const errors = validate();
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+    if (!validate()) return;
 
     setIsSubmitting(true);
+    setServerError(null);
+
     try {
       const payload = {
         titulo: formData.titulo.trim(),
@@ -105,27 +104,26 @@ export function EditTicketPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
-      <div>
-        <Link
-          to={`/tickets/${id}`}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Volver al detalle del Ticket #{id}</span>
-        </Link>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-6">
+      {/* Volver */}
+      <Link
+        to={`/tickets/${id}`}
+        className="inline-flex items-center gap-2 text-xs font-semibold text-[#252A30]/70 hover:text-[#202C2A] transition"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        <span>Volver a la ficha del Ticket #{id}</span>
+      </Link>
 
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xs">
-        <div className="border-b border-slate-100 pb-5 mb-6">
-          <span className="text-xs font-bold text-sky-600 uppercase tracking-wider">
+      <div className="rounded-2xl border border-[#E2DDD2] bg-[#FFFFFF] p-6 sm:p-8 shadow-xs">
+        <div className="border-b border-[#E2DDD2] pb-5 mb-6">
+          <span className="text-xs font-bold text-[#C49A6C] uppercase tracking-wider">
             Ticket #{id}
           </span>
-          <h1 className="text-xl font-black text-slate-900 sm:text-2xl mt-1">
+          <h1 className="text-xl font-bold text-[#252A30] sm:text-2xl mt-1 font-display">
             Editar Parámetros del Ticket
           </h1>
-          <p className="mt-1 text-xs text-slate-500">
-            Modifique los campos permitidos. Reasignar el agente registrará un evento de trazabilidad en el historial.
+          <p className="mt-1 text-xs text-[#252A30]/60">
+            Modifique los campos permitidos. Reasignar el agente registrará un evento de trazabilidad en el historial de auditoría.
           </p>
         </div>
 
@@ -141,7 +139,7 @@ export function EditTicketPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <FormField
-            label="Título"
+            label="Título del Ticket"
             id="edit-titulo"
             required
             error={formErrors.titulo}
@@ -154,13 +152,13 @@ export function EditTicketPage() {
                 setFormData({ ...formData, titulo: e.target.value });
                 if (formErrors.titulo) setFormErrors({ ...formErrors, titulo: null });
               }}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-3.5 py-2.5 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
             />
           </FormField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField
-              label="Área"
+              label="Área Asignada"
               id="edit-area"
               required
               error={formErrors.area}
@@ -172,7 +170,7 @@ export function EditTicketPage() {
                   setFormData({ ...formData, area: e.target.value });
                   if (formErrors.area) setFormErrors({ ...formErrors, area: null });
                 }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-3.5 py-2.5 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
               >
                 {COMMON_AREAS.map((a) => (
                   <option key={a} value={a}>
@@ -183,7 +181,7 @@ export function EditTicketPage() {
             </FormField>
 
             <FormField
-              label="Prioridad"
+              label="Prioridad / SLA"
               id="edit-prioridad"
               required
               error={formErrors.prioridad}
@@ -195,11 +193,11 @@ export function EditTicketPage() {
                   setFormData({ ...formData, prioridad: e.target.value });
                   if (formErrors.prioridad) setFormErrors({ ...formErrors, prioridad: null });
                 }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-3.5 py-2.5 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
               >
-                <option value={TICKET_PRIORITY.ALTA}>Alta (4h)</option>
-                <option value={TICKET_PRIORITY.MEDIA}>Media (24h)</option>
-                <option value={TICKET_PRIORITY.BAJA}>Baja (72h)</option>
+                <option value={TICKET_PRIORITY.ALTA}>Alta (SLA 4h)</option>
+                <option value={TICKET_PRIORITY.MEDIA}>Media (SLA 24h)</option>
+                <option value={TICKET_PRIORITY.BAJA}>Baja (SLA 72h)</option>
               </select>
             </FormField>
           </div>
@@ -214,7 +212,7 @@ export function EditTicketPage() {
               id="edit-agente"
               value={formData.agente_id}
               onChange={(e) => setFormData({ ...formData, agente_id: e.target.value })}
-              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-3.5 py-2.5 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
             >
               <option value="">-- Sin asignar --</option>
               {Array.isArray(agents) &&
@@ -229,7 +227,7 @@ export function EditTicketPage() {
           </FormField>
 
           <FormField
-            label="Descripción"
+            label="Descripción del Incidente"
             id="edit-descripcion"
             required
             error={formErrors.descripcion}
@@ -242,23 +240,23 @@ export function EditTicketPage() {
                 setFormData({ ...formData, descripcion: e.target.value });
                 if (formErrors.descripcion) setFormErrors({ ...formErrors, descripcion: null });
               }}
-              className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] p-3.5 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
             />
           </FormField>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E2DDD2]">
             <Link
               to={`/tickets/${id}`}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+              className="rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-4 py-2 text-xs font-semibold text-[#252A30] hover:bg-[#F3F0E9] transition"
             >
               Cancelar
             </Link>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-6 py-2.5 text-xs font-semibold text-white shadow-sm hover:from-sky-500 hover:to-indigo-500 transition disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#202C2A] px-6 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-[#151E1C] transition disabled:opacity-50"
             >
-              <Save className="h-3.5 w-3.5" />
+              <Save className="h-3.5 w-3.5 text-[#A9B8A5]" />
               <span>{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}</span>
             </button>
           </div>

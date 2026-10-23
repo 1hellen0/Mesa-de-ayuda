@@ -4,36 +4,36 @@ import { HelpCircle, ArrowLeft } from 'lucide-react';
 
 export function NotFoundPage() {
   return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center text-center p-6 animate-fade-in">
-      <div className="rounded-3xl bg-sky-50 p-6 text-sky-600 mb-6 shadow-xs border border-sky-100">
-        <HelpCircle className="h-16 w-16 stroke-[1.5]" />
+    <div className="flex min-h-[70vh] flex-col items-center justify-center text-center p-6">
+      <div className="rounded-3xl bg-[#202C2A]/10 p-6 text-[#202C2A] mb-6 shadow-xs border border-[#202C2A]/20">
+        <HelpCircle className="h-16 w-16 stroke-[1.5] text-[#C49A6C]" />
       </div>
 
-      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 tracking-wider">
-        ERROR 404
+      <span className="rounded-full bg-[#E2DDD2] px-3 py-1 text-xs font-bold text-[#202C2A] tracking-wider uppercase">
+        Error 404 — No Encontrado
       </span>
 
-      <h1 className="mt-4 text-3xl font-black text-slate-900 tracking-tight sm:text-4xl">
+      <h1 className="mt-4 text-3xl font-bold text-[#252A30] tracking-tight sm:text-4xl font-display">
         Página no encontrada
       </h1>
 
-      <p className="mt-2 max-w-md text-sm text-slate-500 leading-relaxed">
-        La ruta solicitada no existe o fue reubicada dentro del sistema de la mesa de ayuda.
+      <p className="mt-2 max-w-md text-xs sm:text-sm text-[#252A30]/65 leading-relaxed">
+        La ruta solicitada no existe o fue reubicada dentro de NEXORA Intelligence Operations.
       </p>
 
       <div className="mt-8 flex items-center gap-4">
         <Link
-          to="/"
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:from-sky-500 hover:to-indigo-500 transition"
+          to="/dashboard"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#202C2A] bg-[#202C2A] px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-[#151E1C] hover:border-[#C49A6C] transition"
         >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Volver al Dashboard</span>
+          <ArrowLeft className="h-4 w-4 text-[#A9B8A5]" />
+          <span>Ir al Centro de Operaciones</span>
         </Link>
         <Link
-          to="/tickets"
-          className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+          to="/"
+          className="rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-4 py-2.5 text-xs font-semibold text-[#252A30] hover:bg-[#F3F0E9] transition"
         >
-          Ver Tickets
+          Portal NEXORA
         </Link>
       </div>
     </div>

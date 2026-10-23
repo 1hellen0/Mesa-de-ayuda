@@ -3,11 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom';
 import {
   Search,
   Filter,
-  ArrowUpDown,
   Plus,
   Ticket,
   ChevronRight,
-  RotateCcw
+  RotateCcw,
+  Clock,
+  ArrowUpDown
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useFetch } from '../hooks/useFetch';
@@ -17,7 +18,7 @@ import { LoadingSpinner } from '../components/feedback/LoadingSpinner';
 import { ErrorMessage } from '../components/feedback/ErrorMessage';
 import { EmptyState } from '../components/feedback/EmptyState';
 import { formatDate } from '../utils/formatters';
-import { TICKET_STATUS, COMMON_AREAS } from '../utils/constants';
+import { TICKET_STATUS, TICKET_PRIORITY, TICKET_AREAS } from '../utils/constants';
 
 export function TicketsListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -26,8 +27,8 @@ export function TicketsListPage() {
   const [selectedStatus, setSelectedStatus] = useState(searchParams.get('estado') || '');
   const [selectedPriority, setSelectedPriority] = useState(searchParams.get('prioridad') || '');
   const [selectedArea, setSelectedArea] = useState(searchParams.get('area') || '');
-  const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'fecha_creacion');
-  const [order, setOrder] = useState(searchParams.get('order') || 'desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   // Consulta al backend
   const fetchTickets = () => {
@@ -36,8 +37,8 @@ export function TicketsListPage() {
       estado: selectedStatus || undefined,
       prioridad: selectedPriority || undefined,
       area: selectedArea || undefined,
-      sortBy: sortBy || 'fecha_creacion',
-      order: order || 'desc'
+      sortBy: 'fecha_creacion',
+      order: 'desc'
     });
   };
 
@@ -46,9 +47,8 @@ export function TicketsListPage() {
     loading,
     error,
     refetch
-  } = useFetch(fetchTickets, [searchQuery, selectedStatus, selectedPriority, selectedArea, sortBy, order]);
+  } = useFetch(fetchTickets, [searchQuery, selectedStatus, selectedPriority, selectedArea]);
 
-  // Actualizar filtros
   const handleFilterChange = (key, value) => {
     const params = new URLSearchParams(searchParams);
     if (value) {
@@ -57,12 +57,11 @@ export function TicketsListPage() {
       params.delete(key);
     }
     setSearchParams(params);
+    setCurrentPage(1);
 
     if (key === 'estado') setSelectedStatus(value);
     if (key === 'prioridad') setSelectedPriority(value);
     if (key === 'area') setSelectedArea(value);
-    if (key === 'sortBy') setSortBy(value);
-    if (key === 'order') setOrder(value);
   };
 
   const handleResetFilters = () => {
@@ -70,272 +69,281 @@ export function TicketsListPage() {
     setSelectedStatus('');
     setSelectedPriority('');
     setSelectedArea('');
-    setSortBy('fecha_creacion');
-    setOrder('desc');
     setSearchParams({});
+    setCurrentPage(1);
   };
 
-  const statusTabs = [
-    { label: 'Todos', value: '' },
-    { label: 'Abiertos', value: TICKET_STATUS.ABIERTO },
-    { label: 'En Progreso', value: TICKET_STATUS.EN_PROGRESO },
-    { label: 'Resueltos', value: TICKET_STATUS.RESUELTO },
-    { label: 'Cerrados', value: TICKET_STATUS.CERRADO }
-  ];
+  const ticketsList = Array.isArray(tickets) ? tickets : [];
+  const totalTickets = ticketsList.length;
 
-  const totalTickets = Array.isArray(tickets) ? tickets.length : 0;
+  // Paginación en cliente para renderizar exactamente como en el mockup
+  const totalPages = Math.ceil(totalTickets / itemsPerPage) || 1;
+  const paginatedTickets = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return ticketsList.slice(start, start + itemsPerPage);
+  }, [ticketsList, currentPage, itemsPerPage]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6 animate-fade-in pb-12">
+      
+      {/* 1. Header estilo Nexora */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#DFD9CD] pb-5">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-            Gestión de Tickets
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C49A6C]">
+            Registro Centralizado
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#202C2A]">
+            Tickets
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Control de incidentes, cumplimiento de SLA y asignaciones.
+          <p className="mt-1 text-xs sm:text-sm text-[#7A8C76]">
+            Gestiona y da seguimiento a las solicitudes de soporte y acuerdos de servicio.
           </p>
         </div>
 
-        <Link
-          to="/tickets/nuevo"
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/20 hover:from-sky-500 hover:to-indigo-500 transition"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Crear Ticket</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/tickets/nuevo"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#202C2A] px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-sm border border-[#C49A6C]/40 hover:bg-[#2B3B38] hover:border-[#C49A6C] transition-all"
+          >
+            <Plus className="h-4 w-4 text-[#C49A6C]" />
+            <span>Crear Ticket</span>
+          </Link>
+        </div>
       </div>
 
-      {/* Status Tabs Bar */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-200 pb-2">
-        {statusTabs.map((tab) => {
-          const isActive = selectedStatus === tab.value;
-          return (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => handleFilterChange('estado', tab.value)}
-              className={`rounded-xl px-4 py-2 text-xs font-semibold whitespace-nowrap transition ${
-                isActive
-                  ? 'bg-sky-50 text-sky-700 shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
+      {/* 2. Barra de Filtros Refinada (Estilo Imagen Mockup) */}
+      <div className="rounded-2xl border border-[#DFD9CD] bg-white p-4 shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+          
+          {/* Búsqueda */}
+          <div className="sm:col-span-5 relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7A8C76]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por título, cliente o ID..."
+              className="w-full rounded-xl border border-[#DFD9CD] bg-[#FAF8F4] py-2 pl-10 pr-4 text-xs font-medium text-[#252A30] placeholder:text-[#7A8C76] focus:border-[#C49A6C] focus:bg-white focus:outline-none transition-all"
+            />
+          </div>
+
+          {/* Filtro Estado */}
+          <div className="sm:col-span-2">
+            <select
+              value={selectedStatus}
+              onChange={(e) => handleFilterChange('estado', e.target.value)}
+              aria-label="Filtrar por estado"
+              className="w-full rounded-xl border border-[#DFD9CD] bg-[#FAF8F4] py-2 px-3 text-xs font-semibold text-[#252A30] focus:border-[#C49A6C] focus:bg-white focus:outline-none transition-all cursor-pointer"
             >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+              <option value="">Todos los estados</option>
+              <option value={TICKET_STATUS.ABIERTO}>Abierto</option>
+              <option value={TICKET_STATUS.EN_PROGRESO}>En Progreso</option>
+              <option value={TICKET_STATUS.RESUELTO}>Resuelto</option>
+              <option value={TICKET_STATUS.CERRADO}>Cerrado</option>
+            </select>
+          </div>
 
-      {/* Filter and Search Controls */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
-        {/* Search */}
-        <div className="relative lg:col-span-2">
-          <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar por título, descripción o cliente..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              handleFilterChange('q', e.target.value);
-            }}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-4 text-xs text-slate-800 placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-          />
-        </div>
-
-        {/* Priority Filter */}
-        <div>
-          <select
-            value={selectedPriority}
-            onChange={(e) => handleFilterChange('prioridad', e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-          >
-            <option value="">Todas las prioridades</option>
-            <option value="alta">Alta (4h)</option>
-            <option value="media">Media (24h)</option>
-            <option value="baja">Baja (72h)</option>
-          </select>
-        </div>
-
-        {/* Area Filter */}
-        <div>
-          <select
-            value={selectedArea}
-            onChange={(e) => handleFilterChange('area', e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-          >
-            <option value="">Todas las áreas</option>
-            {COMMON_AREAS.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Sorting */}
-        <div className="flex items-center gap-2">
-          <select
-            value={sortBy}
-            onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-          >
-            <option value="fecha_creacion">Fecha de Creación</option>
-            <option value="fecha_limite">Fecha Límite (SLA)</option>
-            <option value="prioridad">Prioridad</option>
-            <option value="estado">Estado</option>
-            <option value="id">ID</option>
-          </select>
-
-          <button
-            type="button"
-            onClick={() => handleFilterChange('order', order === 'asc' ? 'desc' : 'asc')}
-            className="rounded-xl border border-slate-200 bg-slate-50/50 p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-            title={`Orden: ${order === 'asc' ? 'Ascendente' : 'Descendente'}`}
-          >
-            <ArrowUpDown className="h-4 w-4" />
-          </button>
-
-          {(searchQuery || selectedStatus || selectedPriority || selectedArea) && (
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="rounded-xl border border-rose-200 bg-rose-50 p-2 text-rose-600 hover:bg-rose-100 transition"
-              title="Restablecer todos los filtros"
+          {/* Filtro Prioridad */}
+          <div className="sm:col-span-2">
+            <select
+              value={selectedPriority}
+              onChange={(e) => handleFilterChange('prioridad', e.target.value)}
+              aria-label="Filtrar por prioridad"
+              className="w-full rounded-xl border border-[#DFD9CD] bg-[#FAF8F4] py-2 px-3 text-xs font-semibold text-[#252A30] focus:border-[#C49A6C] focus:bg-white focus:outline-none transition-all cursor-pointer"
             >
-              <RotateCcw className="h-4 w-4" />
-            </button>
-          )}
+              <option value="">Todas las prioridades</option>
+              <option value={TICKET_PRIORITY.ALTA}>Alta (4h)</option>
+              <option value={TICKET_PRIORITY.MEDIA}>Media (24h)</option>
+              <option value={TICKET_PRIORITY.BAJA}>Baja (72h)</option>
+            </select>
+          </div>
+
+          {/* Filtro Área */}
+          <div className="sm:col-span-2">
+            <select
+              value={selectedArea}
+              onChange={(e) => handleFilterChange('area', e.target.value)}
+              aria-label="Filtrar por área"
+              className="w-full rounded-xl border border-[#DFD9CD] bg-[#FAF8F4] py-2 px-3 text-xs font-semibold text-[#252A30] focus:border-[#C49A6C] focus:bg-white focus:outline-none transition-all cursor-pointer"
+            >
+              <option value="">Todas las áreas</option>
+              {TICKET_AREAS.map((area) => (
+                <option key={area} value={area}>{area}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Reset button */}
+          <div className="sm:col-span-1 flex justify-end">
+            {(searchQuery || selectedStatus || selectedPriority || selectedArea) && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="flex items-center justify-center p-2 rounded-xl text-[#7A8C76] hover:bg-[#F3F0E9] hover:text-[#202C2A] transition-all"
+                title="Limpiar filtros"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
         </div>
       </div>
 
-      {/* Total Count Header */}
-      <div className="flex items-center justify-between text-xs text-slate-500">
-        <span>Mostrando <strong>{totalTickets}</strong> tickets encontrados</span>
-      </div>
-
-      {/* Main Table or Loading/Error */}
+      {/* 3. Contenedor de la Tabla */}
       {loading ? (
-        <LoadingSpinner message="Consultando tickets desde la base de datos..." />
+        <LoadingSpinner message="Consultando tickets en la base de datos de NEXORA..." />
       ) : error ? (
         <ErrorMessage
-          title="Error al consultar tickets"
+          title="Error al cargar el listado de tickets"
           message={error}
           onRetry={refetch}
         />
       ) : totalTickets === 0 ? (
         <EmptyState
-          icon={Ticket}
-          title="No se encontraron tickets"
-          description="Intente modificar los criterios de búsqueda o cree un nuevo ticket en el sistema."
-          action={
-            <Link
-              to="/tickets/nuevo"
-              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700 transition"
-            >
-              <Plus className="h-4 w-4" />
-              Crear nuevo ticket
-            </Link>
-          }
+          title="No se encontraron tickets con los criterios especificados"
+          message="Intenta modificar la búsqueda o los filtros aplicados para visualizar otros registros."
+          actionText="Crear primer ticket"
+          actionTo="/tickets/nuevo"
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        <div className="rounded-2xl border border-[#DFD9CD] bg-white shadow-sm overflow-hidden">
+          
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left border-collapse text-xs">
+              
+              {/* Encabezado */}
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500">
-                  <th className="py-3 px-4 font-semibold">ID</th>
-                  <th className="py-3 px-4 font-semibold">Título e Incidencia</th>
-                  <th className="py-3 px-4 font-semibold">Cliente</th>
-                  <th className="py-3 px-4 font-semibold">Área</th>
-                  <th className="py-3 px-4 font-semibold">Agente Asignado</th>
-                  <th className="py-3 px-4 font-semibold">Prioridad</th>
-                  <th className="py-3 px-4 font-semibold">Estado</th>
-                  <th className="py-3 px-4 font-semibold">SLA / Vencimiento</th>
-                  <th className="py-3 px-4 font-semibold text-right">Detalle</th>
+                <tr className="border-b border-[#DFD9CD] bg-[#FAF8F4] text-[11px] font-bold uppercase tracking-wider text-[#7A8C76]">
+                  <th scope="col" className="py-3.5 pl-6 pr-3">ID</th>
+                  <th scope="col" className="py-3.5 px-3">Título</th>
+                  <th scope="col" className="py-3.5 px-3">Cliente</th>
+                  <th scope="col" className="py-3.5 px-3">Estado</th>
+                  <th scope="col" className="py-3.5 px-3">Prioridad</th>
+                  <th scope="col" className="py-3.5 px-3">Agente</th>
+                  <th scope="col" className="py-3.5 px-3">SLA</th>
+                  <th scope="col" className="py-3.5 pl-3 pr-6 text-right">Creado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {tickets.map((ticket) => {
-                  const isOverdue = ticket.es_vencido === 1;
 
-                  return (
-                    <tr
-                      key={ticket.id}
-                      className={`hover:bg-slate-50/80 transition ${
-                        isOverdue ? 'bg-rose-50/30' : ''
-                      }`}
-                    >
-                      <td className="py-3.5 px-4 font-bold text-slate-700">#{ticket.id}</td>
-                      <td className="py-3.5 px-4 max-w-sm">
-                        <Link
-                          to={`/tickets/${ticket.id}`}
-                          className="font-bold text-slate-900 hover:text-sky-600 transition block truncate"
-                        >
-                          {ticket.titulo}
-                        </Link>
-                        <span className="text-[11px] text-slate-400 block truncate">
-                          {ticket.descripcion}
+              {/* Filas */}
+              <tbody className="divide-y divide-[#DFD9CD]/60">
+                {paginatedTickets.map((t) => (
+                  <tr
+                    key={t.id}
+                    className="hover:bg-[#FAF8F4]/80 transition-colors group cursor-pointer"
+                  >
+                    {/* ID */}
+                    <td className="py-4 pl-6 pr-3 font-mono font-bold text-[#202C2A] whitespace-nowrap">
+                      <Link to={`/tickets/${t.id}`} className="hover:text-[#C49A6C] flex items-center gap-1">
+                        <span>#{t.id}</span>
+                      </Link>
+                    </td>
+
+                    {/* Título y Área */}
+                    <td className="py-4 px-3 max-w-xs sm:max-w-md">
+                      <Link to={`/tickets/${t.id}`} className="block">
+                        <span className="font-bold text-[#202C2A] group-hover:text-[#C49A6C] transition-colors line-clamp-1">
+                          {t.titulo}
                         </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-medium text-slate-800 block">
-                          {ticket.cliente_nombre || '—'}
+                        <span className="text-[10px] text-[#7A8C76] font-medium">
+                          {t.area}
                         </span>
-                        <span className="text-[11px] text-slate-400 block truncate">
-                          {ticket.cliente_empresa || ticket.cliente_email || ''}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
-                          {ticket.area}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        {ticket.agente_nombre ? (
-                          <div>
-                            <span className="font-semibold text-slate-800 block">
-                              {ticket.agente_nombre}
-                            </span>
-                            <span className="text-[11px] text-slate-400 block">
-                              {ticket.agente_email}
-                            </span>
+                      </Link>
+                    </td>
+
+                    {/* Cliente */}
+                    <td className="py-4 px-3 text-[#252A30] font-medium whitespace-nowrap">
+                      {t.cliente_nombre || 'Cliente'}
+                    </td>
+
+                    {/* Estado */}
+                    <td className="py-4 px-3 whitespace-nowrap">
+                      <StatusBadge status={t.estado} />
+                    </td>
+
+                    {/* Prioridad */}
+                    <td className="py-4 px-3 whitespace-nowrap">
+                      <PriorityBadge priority={t.prioridad} />
+                    </td>
+
+                    {/* Agente Asignado */}
+                    <td className="py-4 px-3 text-[#252A30] whitespace-nowrap">
+                      {t.agente_nombre ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#202C2A] text-white text-[9px] font-bold">
+                            {t.agente_nombre[0]}
                           </div>
-                        ) : (
-                          <span className="text-amber-600 italic">Sin asignar</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <PriorityBadge priority={ticket.prioridad} />
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <StatusBadge status={ticket.estado} />
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <SlaIndicator ticket={ticket} />
-                        <span className="text-[10px] text-slate-400 block mt-1">
-                          Límite: {formatDate(ticket.fecha_limite)}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <Link
-                          to={`/tickets/${ticket.id}`}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-sky-600 transition"
-                        >
-                          <span>Ver</span>
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
+                          <span className="font-medium text-xs text-[#202C2A]">{t.agente_nombre}</span>
+                        </div>
+                      ) : (
+                        <span className="text-[#7A8C76] italic">Sin asignar</span>
+                      )}
+                    </td>
+
+                    {/* SLA Indicator */}
+                    <td className="py-4 px-3 whitespace-nowrap">
+                      <SlaIndicator ticket={t} />
+                    </td>
+
+                    {/* Fecha de Creación */}
+                    <td className="py-4 pl-3 pr-6 text-right text-[11px] font-mono text-[#7A8C76] whitespace-nowrap">
+                      {formatDate(t.fecha_creacion)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
+
             </table>
           </div>
+
+          {/* Paginación */}
+          <div className="flex items-center justify-between border-t border-[#DFD9CD] bg-[#FAF8F4] px-6 py-3.5 text-xs text-[#7A8C76]">
+            <div>
+              Mostrando <span className="font-bold text-[#202C2A]">{(currentPage - 1) * itemsPerPage + 1}</span> a{' '}
+              <span className="font-bold text-[#202C2A]">{Math.min(currentPage * itemsPerPage, totalTickets)}</span> de{' '}
+              <span className="font-bold text-[#202C2A]">{totalTickets}</span> tickets
+            </div>
+
+            <div className="flex items-center gap-1.5 font-mono">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#DFD9CD] bg-white text-[#202C2A] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F3F0E9] transition-all"
+              >
+                &lt;
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold transition-all ${
+                    currentPage === page
+                      ? 'bg-[#202C2A] text-white shadow-xs'
+                      : 'border border-[#DFD9CD] bg-white text-[#202C2A] hover:bg-[#F3F0E9]'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#DFD9CD] bg-white text-[#202C2A] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F3F0E9] transition-all"
+              >
+                &gt;
+              </button>
+            </div>
+          </div>
+
         </div>
       )}
+
     </div>
   );
 }

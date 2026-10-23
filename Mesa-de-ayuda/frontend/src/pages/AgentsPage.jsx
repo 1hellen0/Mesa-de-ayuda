@@ -61,10 +61,10 @@ export function AgentsPage() {
   const openEditModal = (agent) => {
     setEditingAgent(agent);
     setFormData({
-      nombre: agent.nombre || '',
-      email: agent.email || '',
-      area: agent.area || COMMON_AREAS[0],
-      activo: agent.activo !== undefined ? agent.activo : 1
+      nombre: agent.nombre,
+      email: agent.email,
+      area: agent.area,
+      activo: agent.activo
     });
     setFormErrors({});
     setActionError(null);
@@ -73,40 +73,37 @@ export function AgentsPage() {
 
   const validate = () => {
     const errors = {};
-    if (!formData.nombre.trim() || formData.nombre.trim().length < 2) {
-      errors.nombre = 'El nombre debe tener al menos 2 caracteres.';
+    if (!formData.nombre.trim()) errors.nombre = 'El nombre es obligatorio.';
+    if (!formData.email.trim()) {
+      errors.email = 'El correo electrónico es obligatorio.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errors.email = 'Ingrese un formato de correo válido.';
     }
-    if (!formData.email.trim() || !formData.email.includes('@')) {
-      errors.email = 'Ingrese un correo electrónico válido.';
-    }
-    if (!formData.area.trim()) {
-      errors.area = 'El área es requerida.';
-    }
-    return errors;
+    if (!formData.area) errors.area = 'Debe seleccionar un área válida.';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setActionError(null);
-
-    const errors = validate();
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+    if (!validate()) return;
 
     setIsSubmitting(true);
+    setActionError(null);
+
     try {
       if (editingAgent) {
         await api.updateAgent(editingAgent.id, {
           nombre: formData.nombre.trim(),
           email: formData.email.trim(),
-          area: formData.area.trim(),
+          area: formData.area,
           activo: Number(formData.activo)
         });
       } else {
         await api.createAgent({
           nombre: formData.nombre.trim(),
           email: formData.email.trim(),
-          area: formData.area.trim(),
+          area: formData.area,
           activo: Number(formData.activo)
         });
       }
@@ -114,7 +111,7 @@ export function AgentsPage() {
       setModalOpen(false);
       refetch();
     } catch (err) {
-      setActionError(err.message || 'Error al procesar la operación.');
+      setActionError(err.message || 'Error al guardar el agente.');
     } finally {
       setIsSubmitting(false);
     }
@@ -141,25 +138,29 @@ export function AgentsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6">
+      {/* Header editorial NEXORA */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#E2DDD2] pb-5">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#C49A6C]">
+            <Users className="h-3.5 w-3.5" />
+            <span>Equipo de Operaciones</span>
+          </div>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#252A30] sm:text-3xl font-display">
             Gestión de Agentes
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Administre la plantilla de soporte técnico y sus áreas de especialidad.
+          <p className="mt-1 text-xs text-[#252A30]/65 sm:text-sm">
+            Administre la plantilla de soporte técnico y sus áreas oficiales de asignación automática.
           </p>
         </div>
 
         <button
           type="button"
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/20 hover:from-sky-500 hover:to-indigo-500 transition"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#202C2A] bg-[#202C2A] px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-[#151E1C] hover:border-[#C49A6C] transition"
         >
-          <Plus className="h-4 w-4" />
-          <span>Agregar Agente</span>
+          <Plus className="h-4 w-4 text-[#A9B8A5]" />
+          <span>Registrar Agente</span>
         </button>
       </div>
 
@@ -183,10 +184,10 @@ export function AgentsPage() {
       )}
 
       {loading ? (
-        <LoadingSpinner message="Consultando directorio de agentes..." />
+        <LoadingSpinner message="Consultando catálogo de agentes..." />
       ) : error ? (
         <ErrorMessage
-          title="Error al consultar agentes"
+          title="Error al cargar agentes"
           message={error}
           onRetry={refetch}
         />
@@ -194,45 +195,45 @@ export function AgentsPage() {
         <EmptyState
           icon={Users}
           title="No hay agentes registrados"
-          description="Cree el primer agente para habilitar la asignación automática de tickets por área."
+          description="Añada agentes para habilitar la asignación automática por carga de trabajo."
           action={
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700 transition"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#202C2A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#151E1C] transition"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 text-[#A9B8A5]" />
               <span>Registrar Agente</span>
             </button>
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        <div className="overflow-hidden rounded-2xl border border-[#E2DDD2] bg-[#FFFFFF] shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500">
-                  <th className="py-3 px-4 font-semibold">ID</th>
-                  <th className="py-3 px-4 font-semibold">Nombre del Agente</th>
-                  <th className="py-3 px-4 font-semibold">Correo Electrónico</th>
-                  <th className="py-3 px-4 font-semibold">Área Asignada</th>
-                  <th className="py-3 px-4 font-semibold">Estado</th>
-                  <th className="py-3 px-4 font-semibold text-right">Acciones</th>
+                <tr className="border-b border-[#E2DDD2] bg-[#F3F0E9]/70 text-[#252A30]/70">
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px]">ID</th>
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px]">Nombre del Agente</th>
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px]">Correo Electrónico</th>
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px]">Área Asignada</th>
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px]">Estado</th>
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px] text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#F3F0E9]">
                 {agents.map((agent) => {
                   const isActive = agent.activo === 1;
 
                   return (
-                    <tr key={agent.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-3.5 px-4 font-bold text-slate-700">#{agent.id}</td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
+                    <tr key={agent.id} className="hover:bg-[#F3F0E9]/40 transition">
+                      <td className="py-3.5 px-4 font-bold text-[#202C2A]">#{agent.id}</td>
+                      <td className="py-3.5 px-4 font-bold text-[#252A30]">
                         {agent.nombre}
                       </td>
-                      <td className="py-3.5 px-4 text-slate-600">{agent.email}</td>
+                      <td className="py-3.5 px-4 text-[#252A30]/70">{agent.email}</td>
                       <td className="py-3.5 px-4">
-                        <span className="rounded-md bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 border border-indigo-100">
+                        <span className="rounded-md bg-[#202C2A]/10 px-2.5 py-1 text-xs font-semibold text-[#202C2A] border border-[#202C2A]/20">
                           {agent.area}
                         </span>
                       </td>
@@ -240,13 +241,13 @@ export function AgentsPage() {
                         <span
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
                             isActive
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-slate-100 text-slate-600 border-slate-200'
+                              ? 'bg-[#7C9A86]/20 text-[#202C2A] border-[#7C9A86]/40'
+                              : 'bg-[#E2DDD2] text-[#252A30]/60 border-[#C9C3B6]'
                           }`}
                         >
                           <span
                             className={`h-1.5 w-1.5 rounded-full ${
-                              isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                              isActive ? 'bg-[#7C9A86]' : 'bg-[#252A30]/40'
                             }`}
                           />
                           <span>{isActive ? 'Activo' : 'Inactivo'}</span>
@@ -257,7 +258,7 @@ export function AgentsPage() {
                           <button
                             type="button"
                             onClick={() => openEditModal(agent)}
-                            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-sky-600 transition"
+                            className="rounded-lg p-1.5 text-[#252A30]/60 hover:bg-[#F3F0E9] hover:text-[#202C2A] transition"
                             title="Editar agente"
                           >
                             <Edit className="h-4 w-4" />
@@ -268,7 +269,7 @@ export function AgentsPage() {
                               setAgentToDelete(agent);
                               setDeleteModalOpen(true);
                             }}
-                            className="rounded-lg p-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition"
+                            className="rounded-lg p-1.5 text-[#252A30]/60 hover:bg-rose-50 hover:text-rose-600 transition"
                             title="Eliminar agente"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -284,23 +285,15 @@ export function AgentsPage() {
         </div>
       )}
 
-      {/* Modal Crear / Editar Agente */}
+      {/* Modal Crear / Editar */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-100">
-            <button
-              type="button"
-              onClick={() => setModalOpen(false)}
-              className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <div className="mb-5">
-              <h3 className="text-lg font-bold text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#151E1C]/80 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#E2DDD2] bg-[#FFFFFF] p-6 shadow-2xl">
+            <div className="border-b border-[#E2DDD2] pb-4 mb-5">
+              <h3 className="text-lg font-bold text-[#252A30] font-display">
                 {editingAgent ? `Editar Agente #${editingAgent.id}` : 'Registrar Nuevo Agente'}
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[#252A30]/60 mt-0.5">
                 Los agentes activos son elegibles para la asignación automática de tickets.
               </p>
             </div>
@@ -321,7 +314,7 @@ export function AgentsPage() {
                     if (formErrors.nombre) setFormErrors({ ...formErrors, nombre: null });
                   }}
                   placeholder="Ej: Laura Fernández"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-3.5 py-2 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
                 />
               </FormField>
 
@@ -339,8 +332,8 @@ export function AgentsPage() {
                     setFormData({ ...formData, email: e.target.value });
                     if (formErrors.email) setFormErrors({ ...formErrors, email: null });
                   }}
-                  placeholder="laura.fernandez@soporte.com"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  placeholder="laura.fernandez@nexora.com"
+                  className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-3.5 py-2 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
                 />
               </FormField>
 
@@ -357,7 +350,7 @@ export function AgentsPage() {
                     setFormData({ ...formData, area: e.target.value });
                     if (formErrors.area) setFormErrors({ ...formErrors, area: null });
                   }}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-3.5 py-2 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
                 >
                   {COMMON_AREAS.map((a) => (
                     <option key={a} value={a}>
@@ -372,43 +365,43 @@ export function AgentsPage() {
                 id="agent-activo"
               >
                 <div className="flex items-center gap-4 pt-1">
-                  <label className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                  <label className="inline-flex items-center gap-2 text-xs text-[#252A30] cursor-pointer">
                     <input
                       type="radio"
                       name="agentActivo"
                       checked={Number(formData.activo) === 1}
                       onChange={() => setFormData({ ...formData, activo: 1 })}
-                      className="text-sky-600 focus:ring-sky-500"
+                      className="text-[#202C2A] focus:ring-[#C49A6C]"
                     />
                     <span>Activo (Disponible para auto-asignación)</span>
                   </label>
-                  <label className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                  <label className="inline-flex items-center gap-2 text-xs text-[#252A30] cursor-pointer">
                     <input
                       type="radio"
                       name="agentActivo"
                       checked={Number(formData.activo) === 0}
                       onChange={() => setFormData({ ...formData, activo: 0 })}
-                      className="text-sky-600 focus:ring-sky-500"
+                      className="text-[#202C2A] focus:ring-[#C49A6C]"
                     />
                     <span>Inactivo</span>
                   </label>
                 </div>
               </FormField>
 
-              <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-[#E2DDD2]">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                  className="rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-4 py-2 text-xs font-semibold text-[#252A30] hover:bg-[#F3F0E9] transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:from-sky-500 hover:to-indigo-500 transition disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#202C2A] px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#151E1C] transition disabled:opacity-50"
                 >
-                  <CheckCircle2 className="h-4 w-4" />
+                  <CheckCircle2 className="h-4 w-4 text-[#A9B8A5]" />
                   <span>{isSubmitting ? 'Guardando...' : editingAgent ? 'Guardar Cambios' : 'Crear Agente'}</span>
                 </button>
               </div>

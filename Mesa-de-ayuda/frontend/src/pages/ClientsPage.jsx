@@ -6,9 +6,9 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
-  X,
+  Mail,
   Phone,
-  Mail
+  X
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useFetch } from '../hooks/useFetch';
@@ -33,8 +33,8 @@ export function ClientsPage() {
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
-    telefono: '',
-    empresa: ''
+    empresa: '',
+    telefono: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,8 +50,8 @@ export function ClientsPage() {
     setFormData({
       nombre: '',
       email: '',
-      telefono: '',
-      empresa: ''
+      empresa: '',
+      telefono: ''
     });
     setFormErrors({});
     setActionError(null);
@@ -61,10 +61,10 @@ export function ClientsPage() {
   const openEditModal = (client) => {
     setEditingClient(client);
     setFormData({
-      nombre: client.nombre || '',
-      email: client.email || '',
-      telefono: client.telefono || '',
-      empresa: client.empresa || ''
+      nombre: client.nombre,
+      email: client.email,
+      empresa: client.empresa || '',
+      telefono: client.telefono || ''
     });
     setFormErrors({});
     setActionError(null);
@@ -73,42 +73,44 @@ export function ClientsPage() {
 
   const validate = () => {
     const errors = {};
-    if (!formData.nombre.trim() || formData.nombre.trim().length < 2) {
-      errors.nombre = 'El nombre debe tener al menos 2 caracteres.';
+    if (!formData.nombre.trim()) errors.nombre = 'El nombre o razón social es obligatorio.';
+    if (!formData.email.trim()) {
+      errors.email = 'El correo electrónico es obligatorio.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errors.email = 'Ingrese un formato de correo electrónico válido.';
     }
-    if (!formData.email.trim() || !formData.email.includes('@')) {
-      errors.email = 'Ingrese un correo electrónico válido.';
-    }
-    return errors;
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setActionError(null);
-
-    const errors = validate();
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+    if (!validate()) return;
 
     setIsSubmitting(true);
-    try {
-      const payload = {
-        nombre: formData.nombre.trim(),
-        email: formData.email.trim(),
-        telefono: formData.telefono.trim() || null,
-        empresa: formData.empresa.trim() || null
-      };
+    setActionError(null);
 
+    try {
       if (editingClient) {
-        await api.updateClient(editingClient.id, payload);
+        await api.updateClient(editingClient.id, {
+          nombre: formData.nombre.trim(),
+          email: formData.email.trim(),
+          empresa: formData.empresa.trim() || null,
+          telefono: formData.telefono.trim() || null
+        });
       } else {
-        await api.createClient(payload);
+        await api.createClient({
+          nombre: formData.nombre.trim(),
+          email: formData.email.trim(),
+          empresa: formData.empresa.trim() || null,
+          telefono: formData.telefono.trim() || null
+        });
       }
 
       setModalOpen(false);
       refetch();
     } catch (err) {
-      setActionError(err.message || 'Error al procesar la operación.');
+      setActionError(err.message || 'Error al guardar el cliente.');
     } finally {
       setIsSubmitting(false);
     }
@@ -135,24 +137,28 @@ export function ClientsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6">
+      {/* Header editorial NEXORA */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#E2DDD2] pb-5">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#C49A6C]">
+            <Building2 className="h-3.5 w-3.5" />
+            <span>Directorio Corporativo</span>
+          </div>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#252A30] sm:text-3xl font-display">
             Gestión de Clientes
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Directorio de cuentas corporativas y usuarios solicitantes del servicio.
+          <p className="mt-1 text-xs text-[#252A30]/65 sm:text-sm">
+            Directorio de cuentas corporativas y usuarios solicitantes vinculados a la mesa de operaciones.
           </p>
         </div>
 
         <button
           type="button"
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/20 hover:from-sky-500 hover:to-indigo-500 transition"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#202C2A] bg-[#202C2A] px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-[#151E1C] hover:border-[#C49A6C] transition"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-4 w-4 text-[#A9B8A5]" />
           <span>Registrar Cliente</span>
         </button>
       </div>
@@ -193,61 +199,61 @@ export function ClientsPage() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700 transition"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#202C2A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#151E1C] transition"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 text-[#A9B8A5]" />
               <span>Registrar Cliente</span>
             </button>
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        <div className="overflow-hidden rounded-2xl border border-[#E2DDD2] bg-[#FFFFFF] shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500">
-                  <th className="py-3 px-4 font-semibold">ID</th>
-                  <th className="py-3 px-4 font-semibold">Nombre / Contacto</th>
-                  <th className="py-3 px-4 font-semibold">Empresa</th>
-                  <th className="py-3 px-4 font-semibold">Correo Electrónico</th>
-                  <th className="py-3 px-4 font-semibold">Teléfono</th>
-                  <th className="py-3 px-4 font-semibold">Registrado</th>
-                  <th className="py-3 px-4 font-semibold text-right">Acciones</th>
+                <tr className="border-b border-[#E2DDD2] bg-[#F3F0E9]/70 text-[#252A30]/70">
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px]">ID</th>
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px]">Nombre / Contacto</th>
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px]">Empresa</th>
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px]">Correo Electrónico</th>
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px]">Teléfono</th>
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px]">Registrado</th>
+                  <th className="py-3.5 px-4 font-bold uppercase tracking-wider text-[11px] text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#F3F0E9]">
                 {clients.map((client) => (
-                  <tr key={client.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-3.5 px-4 font-bold text-slate-700">#{client.id}</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900">
+                  <tr key={client.id} className="hover:bg-[#F3F0E9]/40 transition">
+                    <td className="py-3.5 px-4 font-bold text-[#202C2A]">#{client.id}</td>
+                    <td className="py-3.5 px-4 font-bold text-[#252A30]">
                       {client.nombre}
                     </td>
                     <td className="py-3.5 px-4">
                       {client.empresa ? (
-                        <span className="rounded-md bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700 border border-sky-100">
+                        <span className="rounded-md bg-[#202C2A]/10 px-2 py-0.5 text-xs font-semibold text-[#202C2A] border border-[#202C2A]/20">
                           {client.empresa}
                         </span>
                       ) : (
-                        <span className="text-slate-400 italic">No especificada</span>
+                        <span className="text-[#252A30]/40 italic">No especificada</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-600">
+                    <td className="py-3.5 px-4 text-[#252A30]/70">
                       <span className="inline-flex items-center gap-1.5">
-                        <Mail className="h-3.5 w-3.5 text-slate-400" />
+                        <Mail className="h-3.5 w-3.5 text-[#252A30]/40" />
                         {client.email}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-600">
+                    <td className="py-3.5 px-4 text-[#252A30]/70">
                       {client.telefono ? (
                         <span className="inline-flex items-center gap-1.5">
-                          <Phone className="h-3.5 w-3.5 text-slate-400" />
+                          <Phone className="h-3.5 w-3.5 text-[#252A30]/40" />
                           {client.telefono}
                         </span>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-[#252A30]/40">—</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-400">
+                    <td className="py-3.5 px-4 text-[#252A30]/50">
                       {formatDate(client.created_at)}
                     </td>
                     <td className="py-3.5 px-4 text-right">
@@ -255,7 +261,7 @@ export function ClientsPage() {
                         <button
                           type="button"
                           onClick={() => openEditModal(client)}
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-sky-600 transition"
+                          className="rounded-lg p-1.5 text-[#252A30]/60 hover:bg-[#F3F0E9] hover:text-[#202C2A] transition"
                           title="Editar cliente"
                         >
                           <Edit className="h-4 w-4" />
@@ -266,7 +272,7 @@ export function ClientsPage() {
                             setClientToDelete(client);
                             setDeleteModalOpen(true);
                           }}
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition"
+                          className="rounded-lg p-1.5 text-[#252A30]/60 hover:bg-rose-50 hover:text-rose-600 transition"
                           title="Eliminar cliente"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -281,23 +287,15 @@ export function ClientsPage() {
         </div>
       )}
 
-      {/* Modal Crear / Editar Cliente */}
+      {/* Modal Crear / Editar */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-100">
-            <button
-              type="button"
-              onClick={() => setModalOpen(false)}
-              className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <div className="mb-5">
-              <h3 className="text-lg font-bold text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#151E1C]/80 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#E2DDD2] bg-[#FFFFFF] p-6 shadow-2xl">
+            <div className="border-b border-[#E2DDD2] pb-4 mb-5">
+              <h3 className="text-lg font-bold text-[#252A30] font-display">
                 {editingClient ? `Editar Cliente #${editingClient.id}` : 'Registrar Nuevo Cliente'}
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[#252A30]/60 mt-0.5">
                 Los clientes pueden solicitar tickets en las diferentes áreas de soporte.
               </p>
             </div>
@@ -317,8 +315,8 @@ export function ClientsPage() {
                     setFormData({ ...formData, nombre: e.target.value });
                     if (formErrors.nombre) setFormErrors({ ...formErrors, nombre: null });
                   }}
-                  placeholder="Ej: Acme Corp Contact"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  placeholder="Ej: Distribuidora Global"
+                  className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-3.5 py-2 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
                 />
               </FormField>
 
@@ -336,8 +334,8 @@ export function ClientsPage() {
                     setFormData({ ...formData, email: e.target.value });
                     if (formErrors.email) setFormErrors({ ...formErrors, email: null });
                   }}
-                  placeholder="contacto@acme.com"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  placeholder="soporte@empresa.com"
+                  className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-3.5 py-2 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
                 />
               </FormField>
 
@@ -350,8 +348,8 @@ export function ClientsPage() {
                   id="client-empresa"
                   value={formData.empresa}
                   onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
-                  placeholder="Ej: Acme Corporation"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  placeholder="Ej: Distribuidora Global S.A."
+                  className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-3.5 py-2 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
                 />
               </FormField>
 
@@ -365,24 +363,24 @@ export function ClientsPage() {
                   value={formData.telefono}
                   onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                   placeholder="Ej: +506 2222-1111"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs text-slate-800 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  className="w-full rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-3.5 py-2 text-xs text-[#252A30] shadow-xs focus:border-[#C49A6C] focus:outline-none focus:ring-1 focus:ring-[#C49A6C]"
                 />
               </FormField>
 
-              <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="mt-6 flex items-center justify-end gap-3 pt-4 border-t border-[#E2DDD2]">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                  className="rounded-xl border border-[#E2DDD2] bg-[#FFFFFF] px-4 py-2 text-xs font-semibold text-[#252A30] hover:bg-[#F3F0E9] transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:from-sky-500 hover:to-indigo-500 transition disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#202C2A] px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#151E1C] transition disabled:opacity-50"
                 >
-                  <CheckCircle2 className="h-4 w-4" />
+                  <CheckCircle2 className="h-4 w-4 text-[#A9B8A5]" />
                   <span>{isSubmitting ? 'Guardando...' : editingClient ? 'Guardar Cambios' : 'Crear Cliente'}</span>
                 </button>
               </div>
